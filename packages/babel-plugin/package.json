@@ -16,7 +16,7 @@
     "lint": "tsc --noEmit"
   },
   "dependencies": {
-    "@babel/core": "^7.26.0",
+    "@babel/core": "^8.0.1",
     "@babel/generator": "^7.26.0",
     "@babel/types": "^7.26.0"
   },

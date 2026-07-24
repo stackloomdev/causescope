@@ -16,7 +16,7 @@
     "lint": "tsc --noEmit"
   },
   "dependencies": {
-    "@babel/core": "^7.26.0",
+    "@babel/core": "^8.0.1",
     "@causescope/babel-plugin": "workspace:*",
     "@causescope/shared": "workspace:*",
     "@rollup/pluginutils": "^5.1.4",
