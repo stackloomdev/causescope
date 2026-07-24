@@ -26,10 +26,10 @@
     "check": "pnpm typecheck && pnpm test && pnpm build && pnpm verify:production && pnpm test:package && pnpm test:e2e"
   },
   "devDependencies": {
-    "@types/node": "^22.10.2",
+    "@types/node": "^26.1.1",
     "tsup": "^8.3.5",
     "turbo": "^2.3.3",
-    "typescript": "^5.7.2",
-    "vitest": "^2.1.8"
+    "typescript": "^7.0.2",
+    "vitest": "^4.1.10"
   }
 }
