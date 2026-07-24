@@ -27,7 +27,7 @@ jobs:
           cache: pnpm
           registry-url: https://registry.npmjs.org
       - run: pnpm install --frozen-lockfile
-      - run: pnpm exec playwright install --with-deps chromium
+      - run: pnpm --filter @causescope/example-vite-react-19 exec playwright install --with-deps chromium
       - run: pnpm check
       - name: Validate release tag and select npm channel
         id: package
