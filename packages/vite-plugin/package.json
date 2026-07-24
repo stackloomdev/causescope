@@ -1,0 +1,32 @@
+{
+  "name": "@causescope/vite-plugin",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    }
+  },
+  "scripts": {
+    "build": "tsup src/index.ts --format esm --dts --clean --external vite",
+    "test": "vitest run --passWithNoTests",
+    "typecheck": "tsc --noEmit",
+    "lint": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@babel/core": "^7.26.0",
+    "@causescope/babel-plugin": "workspace:*",
+    "@causescope/shared": "workspace:*",
+    "@rollup/pluginutils": "^5.1.4",
+    "launch-editor": "^2.9.1"
+  },
+  "devDependencies": {
+    "@types/babel__core": "^7.20.5",
+    "vite": "^6.0.5"
+  },
+  "peerDependencies": {
+    "vite": ">=5.0.0"
+  }
+}

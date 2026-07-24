@@ -1,0 +1,82 @@
+// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
+
+exports[`CauseScope Babel instrumentation > instruments a TSX host element, disabled expression, and bound useState setter 1`] = `
+"import { __cs as _causeScopeRuntime } from "virtual:causescope-runtime";
+import { useState } from 'react';
+export function ProductEditor(): JSX.Element {
+  const [isDirty, setIsDirty] = useState(false);
+  _causeScopeRuntime.registerState({
+    stateId: "cs_state_995366e52e",
+    stateName: "isDirty",
+    componentName: "ProductEditor",
+    source: {
+      file: "src/ProductEditor.tsx",
+      line: 5,
+      column: 15
+    },
+    setter: setIsDirty,
+    currentValue: isDirty,
+    hookType: "state"
+  });
+  return <button disabled={_causeScopeRuntime.traceExpression({
+    metadata: {
+      id: "cs_expr_d4cc27c818",
+      nodeId: "cs_node_851e27c355",
+      kind: "attribute",
+      property: "disabled",
+      expression: "!isDirty",
+      source: {
+        file: "src/ProductEditor.tsx",
+        line: 7,
+        column: 29
+      },
+      componentName: "ProductEditor",
+      condition: {
+        id: "cs_condition_4f71581128",
+        type: "unary",
+        expression: "!isDirty",
+        operator: "!",
+        children: [{
+          id: "cs_condition_a90e4a9c54",
+          type: "identifier",
+          expression: "isDirty",
+          inputName: "isDirty"
+        }]
+      },
+      decisionLabel: "!isDirty",
+      instanceBinding: "host-prop"
+    },
+    evaluate: _causeScopeCapture => !_causeScopeCapture("isDirty", isDirty, "cs_state_995366e52e")
+  })} onClick={_causeScopeRuntime.traceExpression({
+    metadata: {
+      id: "cs_expr_d106dda9f1",
+      nodeId: "cs_node_851e27c355",
+      kind: "attribute",
+      property: "onClick",
+      expression: "() => setIsDirty(false)",
+      source: {
+        file: "src/ProductEditor.tsx",
+        line: 7,
+        column: 48
+      },
+      componentName: "ProductEditor",
+      instanceBinding: "host-prop"
+    },
+    evaluate: _causeScopeCapture2 => () => _causeScopeRuntime.setState({
+      stateId: "cs_state_995366e52e",
+      stateName: "isDirty",
+      componentName: "ProductEditor",
+      source: {
+        file: "src/ProductEditor.tsx",
+        line: 7,
+        column: 54
+      },
+      setter: setIsDirty,
+      previousValue: isDirty,
+      nextValue: false
+    })
+  })} data-causescope-source={"<button disabled={!isDirty} onClick={() => setIsDirty(false)}>\\n            Publish\\n          </button>"} data-causescope-node="cs_node_851e27c355" data-causescope-file="src/ProductEditor.tsx" data-causescope-line="7" data-causescope-column="11" data-causescope-component="ProductEditor">
+            Publish
+          </button>;
+}"
+`;

@@ -1,0 +1,35 @@
+{
+  "name": "causescope-monorepo",
+  "version": "1.0.0-beta.1",
+  "private": true,
+  "description": "Click any UI. Trace the cause.",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/stackloomdev/causescope.git"
+  },
+  "packageManager": "pnpm@10.30.3",
+  "type": "module",
+  "scripts": {
+    "dev": "pnpm build:packages && pnpm --filter @causescope/example-vite-react-19 dev",
+    "dev:example": "pnpm build:packages && pnpm --filter @causescope/example-vite-react-19 dev",
+    "docs:dev": "pnpm --filter @causescope/docs dev",
+    "docs:build": "pnpm --filter @causescope/docs build",
+    "build:packages": "turbo run build --filter='./packages/*'",
+    "build": "turbo run build",
+    "test": "turbo run test",
+    "test:e2e": "pnpm build:packages && pnpm --filter @causescope/example-vite-react-19 test:e2e && pnpm --filter @causescope/example-vite-react-18 test:e2e",
+    "test:package": "node --experimental-strip-types scripts/verify-package.ts",
+    "verify:production": "node --experimental-strip-types scripts/verify-production.ts",
+    "typecheck": "turbo run typecheck",
+    "lint": "turbo run lint",
+    "check": "pnpm typecheck && pnpm test && pnpm build && pnpm verify:production && pnpm test:package && pnpm test:e2e"
+  },
+  "devDependencies": {
+    "@types/node": "^22.10.2",
+    "tsup": "^8.3.5",
+    "turbo": "^2.3.3",
+    "typescript": "^5.7.2",
+    "vitest": "^2.1.8"
+  }
+}

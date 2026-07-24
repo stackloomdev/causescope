@@ -1,0 +1,46 @@
+name: Bug report
+description: Report a reproducible CauseScope problem.
+title: "[Bug]: "
+labels: [bug, triage]
+body:
+  - type: markdown
+    attributes:
+      value: Remove secrets, private source code, and customer data before submitting.
+  - type: textarea
+    id: behavior
+    attributes:
+      label: What happened?
+      description: Describe the selected element, what CauseScope showed, and what evidence you expected.
+    validations:
+      required: true
+  - type: textarea
+    id: reproduction
+    attributes:
+      label: Minimal reproduction
+      description: Link a public reproduction or provide concise TypeScript steps.
+    validations:
+      required: true
+  - type: input
+    id: versions
+    attributes:
+      label: Versions
+      placeholder: CauseScope, React, Vite, Node.js, browser
+    validations:
+      required: true
+  - type: dropdown
+    id: production
+    attributes:
+      label: Does production output contain CauseScope markers?
+      options:
+        - "No"
+        - "Yes"
+        - "Not checked"
+    validations:
+      required: true
+  - type: checkboxes
+    id: checks
+    attributes:
+      label: Safety check
+      options:
+        - label: I removed secrets and private application data from this report.
+          required: true

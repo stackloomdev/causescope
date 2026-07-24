@@ -1,0 +1,92 @@
+{
+  "name": "causescope",
+  "version": "1.0.0-beta.1",
+  "description": "Click any UI. Trace the cause. A local-first React provenance inspector for Vite development.",
+  "keywords": [
+    "react",
+    "vite",
+    "debugging",
+    "devtools",
+    "provenance",
+    "typescript"
+  ],
+  "license": "MIT",
+  "author": "stackloomdev <email@loupengju.cc>",
+  "homepage": "https://github.com/stackloomdev/causescope#readme",
+  "bugs": {
+    "url": "https://github.com/stackloomdev/causescope/issues"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/stackloomdev/causescope.git",
+    "directory": "packages/causescope"
+  },
+  "type": "module",
+  "types": "./types/index.d.ts",
+  "sideEffects": false,
+  "files": [
+    "dist",
+    "types",
+    "LICENSE",
+    "README.md"
+  ],
+  "exports": {
+    ".": {
+      "types": "./types/index.d.ts",
+      "import": "./dist/index.js"
+    },
+    "./vite": {
+      "types": "./types/vite.d.ts",
+      "import": "./dist/vite.js"
+    },
+    "./runtime": {
+      "types": "./types/runtime.d.ts",
+      "import": "./dist/runtime.js"
+    },
+    "./adapters/react-query": {
+      "types": "./types/adapters/react-query.d.ts",
+      "import": "./dist/adapters/react-query.js"
+    },
+    "./adapters/zustand": {
+      "types": "./types/adapters/zustand.d.ts",
+      "import": "./dist/adapters/zustand.js"
+    }
+  },
+  "scripts": {
+    "build": "tsup --config tsup.config.ts",
+    "prepack": "pnpm run build",
+    "test": "vitest run --passWithNoTests",
+    "typecheck": "tsc --noEmit",
+    "lint": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@babel/core": "^7.26.0",
+    "@babel/generator": "^7.26.0",
+    "@babel/types": "^7.26.0",
+    "@rollup/pluginutils": "^5.1.4",
+    "launch-editor": "^2.9.1",
+    "preact": "^10.25.4"
+  },
+  "devDependencies": {
+    "@causescope/adapter-react-query": "workspace:*",
+    "@causescope/adapter-zustand": "workspace:*",
+    "@causescope/overlay": "workspace:*",
+    "@causescope/runtime-core": "workspace:*",
+    "@causescope/runtime-react": "workspace:*",
+    "@causescope/shared": "workspace:*",
+    "@causescope/vite-plugin": "workspace:*",
+    "@types/babel__core": "^7.20.5",
+    "@types/babel__generator": "^7.27.0",
+    "vite": "^6.0.5"
+  },
+  "peerDependencies": {
+    "vite": ">=5.0.0 <7.0.0"
+  },
+  "engines": {
+    "node": ">=18.18.0"
+  },
+  "publishConfig": {
+    "access": "public",
+    "provenance": true
+  }
+}

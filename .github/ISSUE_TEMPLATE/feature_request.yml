@@ -1,0 +1,26 @@
+name: Feature request
+description: Propose a focused provenance or workflow improvement.
+title: "[Feature]: "
+labels: [enhancement, triage]
+body:
+  - type: textarea
+    id: problem
+    attributes:
+      label: Problem
+      description: What debugging task is difficult today?
+    validations:
+      required: true
+  - type: textarea
+    id: evidence
+    attributes:
+      label: Desired evidence
+      description: What should CauseScope show, and what reliable source can provide that evidence?
+    validations:
+      required: true
+  - type: textarea
+    id: constraints
+    attributes:
+      label: Privacy and production constraints
+      description: Note any new data access, redaction, compatibility, or production-bundle considerations.
+    validations:
+      required: true

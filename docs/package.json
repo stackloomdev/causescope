@@ -1,0 +1,16 @@
+{
+  "name": "@causescope/docs",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "vitepress dev --host 0.0.0.0 --port 5178",
+    "build": "vitepress build",
+    "test": "vitest run --passWithNoTests",
+    "typecheck": "tsc --noEmit",
+    "lint": "tsc --noEmit"
+  },
+  "devDependencies": {
+    "vitepress": "^1.6.4"
+  }
+}

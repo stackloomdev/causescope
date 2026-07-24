@@ -1,0 +1,67 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - "v*"
+
+permissions:
+  contents: write
+  id-token: write
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    environment: npm
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          fetch-depth: 0
+      - uses: pnpm/action-setup@f40ffcd9367d9f12939873eb1018b921a783ffaa # v4
+        with:
+          version: 10.30.3
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+        with:
+          node-version: 22
+          cache: pnpm
+          registry-url: https://registry.npmjs.org
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm exec playwright install --with-deps chromium
+      - run: pnpm check
+      - name: Validate release tag and select npm channel
+        id: package
+        working-directory: packages/causescope
+        shell: bash
+        run: |
+          VERSION="$(pnpm pkg get version | tr -d '"')"
+          if [[ "v${VERSION}" != "${GITHUB_REF_NAME}" ]]; then
+            echo "Tag ${GITHUB_REF_NAME} does not match package version ${VERSION}." >&2
+            exit 1
+          fi
+
+          if [[ "${VERSION}" == *-* ]]; then
+            DIST_TAG="${VERSION#*-}"
+            DIST_TAG="${DIST_TAG%%.*}"
+            PRERELEASE="true"
+          else
+            DIST_TAG="latest"
+            PRERELEASE="false"
+          fi
+
+          echo "dist_tag=${DIST_TAG}" >> "${GITHUB_OUTPUT}"
+          echo "prerelease=${PRERELEASE}" >> "${GITHUB_OUTPUT}"
+      - name: Publish npm package
+        run: pnpm --filter causescope publish --access public --provenance --no-git-checks --tag "${{ steps.package.outputs.dist_tag }}"
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+      - name: Create GitHub prerelease
+        if: steps.package.outputs.prerelease == 'true'
+        run: gh release create "$GITHUB_REF_NAME" --generate-notes --verify-tag --prerelease --latest=false
+        env:
+          GH_TOKEN: ${{ github.token }}
+      - name: Create stable GitHub release
+        if: steps.package.outputs.prerelease == 'false'
+        run: gh release create "$GITHUB_REF_NAME" --generate-notes --verify-tag --latest
+        env:
+          GH_TOKEN: ${{ github.token }}
