@@ -25,7 +25,8 @@ jobs:
         with:
           node-version: 22
           cache: pnpm
-          registry-url: https://registry.npmjs.org
+      - name: Install npm with trusted publishing support
+        run: npm install --global npm@11.18.0
       - run: pnpm install --frozen-lockfile
       - run: pnpm --filter @causescope/example-vite-react-19 exec playwright install --with-deps chromium
       - run: pnpm check
@@ -63,9 +64,8 @@ jobs:
           fi
       - name: Publish npm package
         if: steps.registry.outputs.published != 'true'
-        run: pnpm --filter causescope publish --access public --provenance --no-git-checks --tag "${{ steps.package.outputs.dist_tag }}"
-        env:
-          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+        working-directory: packages/causescope
+        run: npm publish --access public --tag "${{ steps.package.outputs.dist_tag }}"
       - name: Create GitHub prerelease
         if: steps.package.outputs.prerelease == 'true'
         run: gh release create "$GITHUB_REF_NAME" --generate-notes --verify-tag --prerelease --latest=false
