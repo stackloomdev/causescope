@@ -51,7 +51,18 @@ jobs:
 
           echo "dist_tag=${DIST_TAG}" >> "${GITHUB_OUTPUT}"
           echo "prerelease=${PRERELEASE}" >> "${GITHUB_OUTPUT}"
+          echo "version=${VERSION}" >> "${GITHUB_OUTPUT}"
+      - name: Check npm registry
+        id: registry
+        shell: bash
+        run: |
+          if npm view "causescope@${{ steps.package.outputs.version }}" version --json >/dev/null 2>&1; then
+            echo "published=true" >> "${GITHUB_OUTPUT}"
+          else
+            echo "published=false" >> "${GITHUB_OUTPUT}"
+          fi
       - name: Publish npm package
+        if: steps.registry.outputs.published != 'true'
         run: pnpm --filter causescope publish --access public --provenance --no-git-checks --tag "${{ steps.package.outputs.dist_tag }}"
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
