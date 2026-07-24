@@ -6,9 +6,26 @@ updates:
       interval: weekly
     groups:
       development-dependencies:
+        applies-to: version-updates
         dependency-type: development
-    open-pull-requests-limit: 10
+        update-types:
+          - minor
+          - patch
+    ignore:
+      # Major upgrades need a dedicated compatibility PR because this monorepo
+      # intentionally tests multiple React and Vite generations.
+      - dependency-name: "*"
+        update-types:
+          - version-update:semver-major
+    open-pull-requests-limit: 5
   - package-ecosystem: github-actions
     directory: /
     schedule:
       interval: weekly
+    groups:
+      minor-and-patch:
+        patterns:
+          - "*"
+        update-types:
+          - minor
+          - patch
