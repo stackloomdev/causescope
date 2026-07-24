@@ -29,3 +29,9 @@ updates:
         update-types:
           - minor
           - patch
+    ignore:
+      # Action major upgrades can change runtime or inputs and need an
+      # intentional compatibility review instead of an automated PR.
+      - dependency-name: "*"
+        update-types:
+          - version-update:semver-major
