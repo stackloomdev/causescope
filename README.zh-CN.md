@@ -12,7 +12,7 @@
 [![CI](https://github.com/stackloomdev/causescope/actions/workflows/ci.yml/badge.svg)](https://github.com/stackloomdev/causescope/actions/workflows/ci.yml)
 [![license](https://img.shields.io/github/license/stackloomdev/causescope?color=737077)](LICENSE)
 
-[在线实验室](https://stackblitz.com/fork/github/stackloomdev/causescope/tree/main/examples/stackblitz?title=CauseScope%20Live%20Lab) · [文档](https://stackloomdev.github.io/causescope/) · [60 秒接入](https://stackloomdev.github.io/causescope/getting-started) · [路线图](ROADMAP.md) · [讨论区](https://github.com/stackloomdev/causescope/discussions) · [English](README.md)
+[在线实验室](https://stackblitz.com/fork/github/stackloomdev/causescope/tree/main/examples/stackblitz?title=CauseScope%20Live%20Lab) · [文档](https://stackloomdev.github.io/causescope/) · [60 秒接入](https://stackloomdev.github.io/causescope/getting-started) · [Beta 测试](https://stackloomdev.github.io/causescope/beta-testing) · [路线图](ROADMAP.md) · [讨论区](https://github.com/stackloomdev/causescope/discussions) · [English](README.md)
 
 </div>
 
@@ -53,6 +53,8 @@ export default defineConfig({
 启动 Vite 开发服务，点击右下角的 **Inspect** 并选择元素；也可以按住 <kbd>Option</kbd>/<kbd>Alt</kbd> 点击。键盘用户可将焦点移到 **Inspect**，按 <kbd>Enter</kbd>，再聚焦页面元素并按 <kbd>Enter</kbd> 或 <kbd>Space</kbd>；方向键切换面板标签，<kbd>Escape</kbd> 关闭。抽屉打开后，可直接选择页面上的另一个元素，无需再次进入检查模式。
 
 CauseScope 只在开发模式的 `vite serve` 中运行。生产包不包含插桩、面板、编辑器接口或调试属性。
+
+在稳定版 1.0 前参与验证时，请按 [Beta 测试指南](https://stackloomdev.github.io/causescope/beta-testing)覆盖多种证据路径，并只提交已脱敏的最小 TypeScript 复现。
 
 ## 面板展示什么
 

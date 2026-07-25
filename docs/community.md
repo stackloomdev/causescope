@@ -5,12 +5,15 @@ CauseScope is developed in public. Pick the channel that matches the state of th
 | Need | Channel |
 | --- | --- |
 | Installation or configuration help | [GitHub Discussions](https://github.com/stackloomdev/causescope/discussions) |
+| Beta observation not yet reduced to a public fixture | [GitHub Discussions](https://github.com/stackloomdev/causescope/discussions) |
 | Early idea with open product or API questions | [GitHub Discussions](https://github.com/stackloomdev/causescope/discussions) |
 | Reproducible defect with a public TypeScript fixture | [Bug report](https://github.com/stackloomdev/causescope/issues/new?template=bug_report.yml) |
 | Focused, implementation-ready improvement | [Feature request](https://github.com/stackloomdev/causescope/issues/new?template=feature_request.yml) |
 | Security concern or sensitive reproduction | [Private vulnerability report](https://github.com/stackloomdev/causescope/security/advisories/new) |
 
 Never post credentials, customer data, private source code, or unredacted trace exports publicly.
+
+Before testing the current beta in a real application, follow the [Beta testing guide](beta-testing.md) for the scenario matrix, minimal public reproduction workflow, and artifact sanitization checklist.
 
 ## Current direction
 

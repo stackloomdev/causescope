@@ -34,6 +34,7 @@ export default defineConfig({
         text: "Guide",
         items: [
           { text: "Getting started", link: "/getting-started" },
+          { text: "Beta testing", link: "/beta-testing" },
           { text: "Configuration", link: "/configuration" },
           { text: "Data adapters", link: "/adapters" },
           { text: "Troubleshooting", link: "/troubleshooting" },
