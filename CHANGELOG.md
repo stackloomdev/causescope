@@ -7,6 +7,7 @@ All notable changes to CauseScope will be documented here. The format follows [K
 ### Added
 
 - Documented the versioned trace export contract, published a checked synthetic v1 example, and exposed its TypeScript types from the main package entrypoint.
+- Added a symptom-first troubleshooting guide for expected unavailable evidence and common setup boundaries.
 
 ## [1.0.0-beta.3] - 2026-07-25
 
