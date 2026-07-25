@@ -67,6 +67,9 @@
         "canRefund": {
           "type": "primitive",
           "value": false
+        },
+        "policyReason": {
+          "type": "undefined"
         }
       },
       "inputOrigins": {

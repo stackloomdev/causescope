@@ -1629,6 +1629,7 @@ export class CauseScopeRuntimeImpl implements CauseScopeRuntime {
   #displayExportValue(value: unknown, key?: string): string {
     const serialized = this.#redactExportValue(value, key);
     if (serialized.type === "primitive") return displayValue(serialized.value);
+    if (serialized.type === "undefined") return "undefined";
     if (serialized.type === "date") return serialized.value;
     if (serialized.type === "function") {
       return typeof serialized.name === "string" ? `[function ${serialized.name}]` : "[function]";

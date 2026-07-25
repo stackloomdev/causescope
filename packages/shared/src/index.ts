@@ -50,8 +50,11 @@ export interface TraceEdge {
   type: TraceEdgeType;
 }
 
+export type SerializedPrimitive = string | number | boolean | null;
+
 export type SerializedValue =
-  | { type: "primitive"; value: unknown }
+  | { type: "primitive"; value: SerializedPrimitive }
+  | { type: "undefined" }
   | { type: "date"; value: string }
   | { type: "array"; value: SerializedValue[]; truncated?: boolean }
   | { type: "object"; value: Record<string, SerializedValue>; truncated?: boolean }

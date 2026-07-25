@@ -81,7 +81,7 @@ export function createTraceExportV1Example(): TraceExport {
         componentName: "RefundButton",
         decisionLabel: "Refund availability",
         result: true,
-        inputs: { canRefund: false },
+        inputs: { canRefund: false, policyReason: undefined },
         inputStateIds: { canRefund: "state-can-refund" },
         inputOrigins: {
           canRefund: [

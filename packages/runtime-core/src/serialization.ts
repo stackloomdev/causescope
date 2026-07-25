@@ -93,11 +93,18 @@ export function serializeValue(
     if (typeof Element !== "undefined" && current instanceof Element) {
       return { type: "dom-node", tagName: current.tagName.toLowerCase() };
     }
-    if (current === null || typeof current !== "object") {
-      if (typeof current === "bigint") return { type: "primitive", value: `${current.toString()}n` };
-      if (typeof current === "symbol") return { type: "primitive", value: String(current) };
+    if (current === undefined) return { type: "undefined" };
+    if (current === null || typeof current === "string" || typeof current === "boolean") {
       return { type: "primitive", value: current };
     }
+    if (typeof current === "number") {
+      return Number.isFinite(current)
+        ? { type: "primitive", value: current }
+        : { type: "unsupported", reason: `Non-finite number: ${String(current)}` };
+    }
+    if (typeof current === "bigint") return { type: "primitive", value: `${current.toString()}n` };
+    if (typeof current === "symbol") return { type: "primitive", value: String(current) };
+    if (typeof current !== "object") return { type: "unsupported", reason: "Unknown primitive value" };
     if (seen.has(current)) return { type: "unsupported", reason: "Circular reference" };
     if (depth >= maxDepth) return { type: "unsupported", reason: "Maximum depth reached" };
     seen.add(current);
@@ -113,7 +120,7 @@ export function serializeValue(
       const visibleLength = Math.min(arrayLength, maxArrayLength);
       const values = Array.from({ length: visibleLength }, (_, index) => {
         const descriptor = descriptors[String(index)];
-        if (!descriptor) return { type: "primitive", value: undefined } as const;
+        if (!descriptor) return { type: "undefined" } as const;
         return Object.prototype.hasOwnProperty.call(descriptor, "value")
           ? visit(descriptor.value, depth + 1)
           : { type: "unsupported", reason: "Accessor not evaluated" } as const;

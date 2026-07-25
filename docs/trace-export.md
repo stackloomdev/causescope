@@ -48,7 +48,7 @@ Empty collections are exported as empty arrays rather than omitted. `source` and
 
 ## Values and source locations
 
-Captured structured values use a tagged representation: `primitive`, `date`, `array`, `object`, `function`, `react-element`, `dom-node`, or `unsupported`. Arrays and objects may include `truncated: true`. Unsupported or intentionally unevaluated values carry a reason instead of a guessed value.
+Captured structured values use a tagged representation: `primitive`, `undefined`, `date`, `array`, `object`, `function`, `react-element`, `dom-node`, or `unsupported`. Primitive values are JSON scalars. JavaScript `undefined` uses the explicit `{ "type": "undefined" }` form so it survives `JSON.stringify`; unsupported or intentionally unevaluated values carry a reason instead of a guessed value. Arrays and objects may include `truncated: true`.
 
 Source locations use project-relative paths. A consumer must not assume a particular editor, operating-system path separator, or repository root.
 

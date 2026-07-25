@@ -19,6 +19,9 @@ deepStrictEqual(traceExportV1Example.timeline[0]?.metadata?.handlerProperty, {
   type: "primitive",
   value: "onClick",
 });
+deepStrictEqual(traceExportV1Example.expressions[0]?.inputs.policyReason, {
+  type: "undefined",
+});
 
 const serializedExample = JSON.stringify(documentedExample);
 match(serializedExample, /\[REDACTED\]/);

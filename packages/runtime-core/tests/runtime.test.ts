@@ -71,6 +71,30 @@ describe("CauseScopeRuntimeImpl", () => {
     );
   });
 
+  it("serializes undefined with an explicit JSON-safe tag", () => {
+    const redaction = mergeRedaction();
+    const serialized = serializeValue({
+      direct: undefined,
+      values: [undefined, , Number.NaN],
+    }, redaction);
+
+    expect(serialized).toEqual({
+      type: "object",
+      value: {
+        direct: { type: "undefined" },
+        values: {
+          type: "array",
+          value: [
+            { type: "undefined" },
+            { type: "undefined" },
+            { type: "unsupported", reason: "Non-finite number: NaN" },
+          ],
+        },
+      },
+    });
+    expect(JSON.parse(JSON.stringify(serialized))).toEqual(serialized);
+  });
+
   it("removes URL credentials, fragments, and malformed URL contents", () => {
     const redaction = mergeRedaction();
     const sanitized = redactUrl(
