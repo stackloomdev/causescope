@@ -8,10 +8,12 @@ All notable changes to CauseScope will be documented here. The format follows [K
 
 - Added React SWC browser coverage plus Node 18 and Windows package-verification lanes.
 - Added browser fixtures for Portals, Suspense retries, Error Boundary recovery, Vite Fast Refresh, CSS Modules, and Tailwind CSS.
+- Added enforced artifact-size budgets for the browser runtime, Vite plugin, adapters, publishable files, and npm tarball.
+- Added a standalone TypeScript StackBlitz lab that installs only the published package and its minimal React/Vite toolchain.
 
 ### Fixed
 
-- Made every StackBlitz live-lab entry WebContainer-safe by replacing its Turbo startup step with an ordered pnpm workspace build.
+- Replaced the monorepo-wide StackBlitz import with an isolated subdirectory project and a frozen pnpm lockfile.
 
 ## [1.0.0-beta.2] - 2026-07-25
 

@@ -12,21 +12,22 @@
   "type": "module",
   "scripts": {
     "dev": "pnpm build:packages && pnpm --filter @causescope/example-vite-react-19 dev",
-    "dev:stackblitz": "pnpm build:stackblitz && pnpm --filter @causescope/example-vite-react-19 dev",
     "dev:example": "pnpm build:packages && pnpm --filter @causescope/example-vite-react-19 dev",
     "docs:dev": "pnpm --filter @causescope/docs dev",
     "docs:build": "pnpm --filter @causescope/docs build",
     "build:packages": "turbo run build --filter=\"./packages/*\"",
-    "build:stackblitz": "pnpm --filter \"./packages/*\" --workspace-concurrency=1 run build",
+    "build:packages:serial": "pnpm --filter \"./packages/*\" --workspace-concurrency=1 run build",
     "build": "turbo run build",
     "test": "turbo run test",
     "test:e2e": "pnpm build:packages && pnpm --filter @causescope/example-vite-react-19 test:e2e && pnpm --filter @causescope/example-vite-react-18 test:e2e && pnpm --filter @causescope/example-vite-react-swc test:e2e",
     "test:package": "tsx scripts/verify-package.ts",
     "verify:links": "tsx scripts/verify-links.ts",
+    "verify:performance": "tsx scripts/verify-performance.ts",
     "verify:production": "tsx scripts/verify-production.ts",
+    "verify:stackblitz": "tsx scripts/verify-stackblitz.ts",
     "typecheck": "turbo run typecheck",
     "lint": "turbo run lint",
-    "check": "pnpm typecheck && pnpm test && pnpm build && pnpm verify:production && pnpm verify:links && pnpm build:stackblitz && pnpm test:package && pnpm test:e2e"
+    "check": "pnpm typecheck && pnpm test && pnpm build && pnpm verify:production && pnpm verify:performance && pnpm verify:links && pnpm verify:stackblitz && pnpm test:package && pnpm test:e2e"
   },
   "devDependencies": {
     "@types/node": "^22.10.2",

@@ -12,7 +12,7 @@ The local-first evidence inspector for React. Select an ordinary page element an
 [![CI](https://github.com/stackloomdev/causescope/actions/workflows/ci.yml/badge.svg)](https://github.com/stackloomdev/causescope/actions/workflows/ci.yml)
 [![license](https://img.shields.io/github/license/stackloomdev/causescope?color=737077)](LICENSE)
 
-[Try the live lab](https://stackblitz.com/fork/github/stackloomdev/causescope?startScript=dev%3Astackblitz) · [Documentation](https://stackloomdev.github.io/causescope/) · [60-second setup](https://stackloomdev.github.io/causescope/getting-started) · [中文](README.zh-CN.md)
+[Try the live lab](https://stackblitz.com/fork/github/stackloomdev/causescope/tree/main/examples/stackblitz?title=CauseScope%20Live%20Lab) · [Documentation](https://stackloomdev.github.io/causescope/) · [60-second setup](https://stackloomdev.github.io/causescope/getting-started) · [中文](README.zh-CN.md)
 
 </div>
 
@@ -118,6 +118,8 @@ React Query provenance includes the query key, status, fetch status, and update 
 
 CI installs the packed npm artifact into isolated Vite 5.4, 6.4, 7.3, and 8.1 consumers and performs a real TSX transform. [`examples/`](examples) adds React 18/19, Babel/SWC, multi-page, multi-component, multi-file, Portal, Suspense, Error Boundary, Fast Refresh, React Query, and Zustand browser scenarios.
 
+Artifact growth is gated separately: the browser runtime graph, Vite plugin, optional adapters, publishable files, and npm tarball all have enforced [performance budgets](https://stackloomdev.github.io/causescope/performance).
+
 ## Privacy and limits
 
 CauseScope has no account, telemetry, remote service, or upload path. Network and storage tracing are development-only and independently configurable. It records only storage keys accessed during the current page run; it does not enumerate browser storage.
@@ -135,7 +137,7 @@ pnpm install
 pnpm check
 ```
 
-The full gate runs type checking, unit tests, every build, the production-absence scan, packed-package Vite 5–8 consumers, and Playwright end-to-end coverage.
+The full gate runs type checking, unit tests, every build, production-absence and performance-budget scans, an isolated StackBlitz build, packed-package Vite 5–8 consumers, and Playwright end-to-end coverage.
 
 ## Contributing
 
