@@ -1,11 +1,12 @@
 import { spawnSync } from "node:child_process";
-import { mkdirSync, mkdtempSync, readFileSync, readdirSync, rmSync, writeFileSync } from "node:fs";
+import { mkdirSync, mkdtempSync, readFileSync, readdirSync, realpathSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 
 const workspaceRoot = resolve(fileURLToPath(new URL("..", import.meta.url)));
-const temporaryRoot = mkdtempSync(join(tmpdir(), "causescope-package-"));
+const temporaryBase = process.env.RUNNER_TEMP ?? tmpdir();
+const temporaryRoot = realpathSync.native(mkdtempSync(join(temporaryBase, "causescope-package-")));
 const supportedViteVersions = ["5.4.21", "6.4.3", "7.3.6", "8.1.5"] as const;
 const pnpmCommand = process.platform === "win32" ? "pnpm.cmd" : "pnpm";
 const pnpmEntry = process.env.npm_execpath;
