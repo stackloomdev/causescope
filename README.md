@@ -12,7 +12,7 @@ The local-first evidence inspector for React. Select an ordinary page element an
 [![CI](https://github.com/stackloomdev/causescope/actions/workflows/ci.yml/badge.svg)](https://github.com/stackloomdev/causescope/actions/workflows/ci.yml)
 [![license](https://img.shields.io/github/license/stackloomdev/causescope?color=737077)](LICENSE)
 
-[Try the live lab](https://stackblitz.com/fork/github/stackloomdev/causescope/tree/main/examples/stackblitz?title=CauseScope%20Live%20Lab) · [Documentation](https://stackloomdev.github.io/causescope/) · [60-second setup](https://stackloomdev.github.io/causescope/getting-started) · [中文](README.zh-CN.md)
+[Try the live lab](https://stackblitz.com/fork/github/stackloomdev/causescope/tree/main/examples/stackblitz?title=CauseScope%20Live%20Lab) · [Documentation](https://stackloomdev.github.io/causescope/) · [60-second setup](https://stackloomdev.github.io/causescope/getting-started) · [Roadmap](ROADMAP.md) · [Discussions](https://github.com/stackloomdev/causescope/discussions) · [中文](README.zh-CN.md)
 
 </div>
 
@@ -141,6 +141,6 @@ The full gate runs type checking, unit tests, every build, production-absence an
 
 ## Contributing
 
-Issues and pull requests are welcome. Start with [CONTRIBUTING.md](CONTRIBUTING.md), [SECURITY.md](SECURITY.md), and the [Code of Conduct](CODE_OF_CONDUCT.md).
+Issues and pull requests are welcome. Start with the [roadmap](ROADMAP.md), [contribution guide](CONTRIBUTING.md), [support policy](SUPPORT.md), [security policy](SECURITY.md), and [Code of Conduct](CODE_OF_CONDUCT.md). Use [Discussions](https://github.com/stackloomdev/causescope/discussions) for questions and early ideas.
 
 Released under the [MIT License](LICENSE).

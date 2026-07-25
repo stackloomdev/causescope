@@ -3,6 +3,24 @@ description: Propose a focused provenance or workflow improvement.
 title: "[Feature]: "
 labels: [enhancement, triage]
 body:
+  - type: markdown
+    attributes:
+      value: Review the public roadmap and search Discussions and Issues before proposing a new surface.
+  - type: dropdown
+    id: area
+    attributes:
+      label: Area
+      options:
+        - Element selection and source location
+        - Expressions and condition evidence
+        - React state, props, or event provenance
+        - Network or storage provenance
+        - Data adapter
+        - Packaging or compatibility
+        - Documentation or contributor experience
+        - Other
+    validations:
+      required: true
   - type: textarea
     id: problem
     attributes:
@@ -24,3 +42,19 @@ body:
       description: Note any new data access, redaction, compatibility, or production-bundle considerations.
     validations:
       required: true
+  - type: textarea
+    id: acceptance
+    attributes:
+      label: Acceptance boundary
+      description: What browser-visible fixture and automated check would prove this works without guessing?
+    validations:
+      required: true
+  - type: checkboxes
+    id: checks
+    attributes:
+      label: Proposal check
+      options:
+        - label: I searched the roadmap, Discussions, and existing Issues.
+          required: true
+        - label: This proposal does not require uploading private application data to a CauseScope service.
+          required: true

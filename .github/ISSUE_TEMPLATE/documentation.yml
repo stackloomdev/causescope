@@ -1,0 +1,32 @@
+name: Documentation improvement
+description: Report missing, unclear, or incorrect CauseScope documentation.
+title: "[Docs]: "
+labels: [documentation, triage]
+body:
+  - type: input
+    id: page
+    attributes:
+      label: Page or section
+      description: Link the page or name the file and heading.
+      placeholder: https://stackloomdev.github.io/causescope/getting-started
+    validations:
+      required: true
+  - type: textarea
+    id: problem
+    attributes:
+      label: What is unclear or missing?
+      description: Describe the task you were trying to complete and where the documentation stopped helping.
+    validations:
+      required: true
+  - type: textarea
+    id: correction
+    attributes:
+      label: Suggested correction
+      description: Propose wording, an example, or an acceptance check when possible.
+  - type: checkboxes
+    id: checks
+    attributes:
+      label: Safety check
+      options:
+        - label: I removed credentials, private source code, customer data, and unredacted traces.
+          required: true

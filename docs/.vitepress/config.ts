@@ -25,6 +25,7 @@ export default defineConfig({
     nav: [
       { text: "Guide", link: "/getting-started" },
       { text: "Configuration", link: "/configuration" },
+      { text: "Community", link: "/community" },
       { text: "Live demo", link: liveDemo },
       { text: "中文", link: "https://github.com/stackloomdev/causescope/blob/main/README.zh-CN.md" },
     ],
@@ -44,6 +45,7 @@ export default defineConfig({
           { text: "Architecture", link: "/architecture" },
           { text: "Performance budgets", link: "/performance" },
           { text: "Validation", link: "/validation" },
+          { text: "Community and support", link: "/community" },
         ],
       },
     ],
