@@ -40,6 +40,7 @@ Applications with custom build pipelines can additionally scan output for `data-
 
 ## Next steps
 
+- Validate real application paths safely with the [Beta testing guide](beta-testing.md).
 - Tune recording and filtering in [Configuration](configuration.md).
 - Connect React Query or Zustand in [Adapters](adapters.md).
 - Diagnose explicit unavailable states in [Troubleshooting](troubleshooting.md).

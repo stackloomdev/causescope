@@ -4,6 +4,8 @@ Thanks for helping improve CauseScope. Bug reports, focused fixes, tests, docume
 
 The [public roadmap](ROADMAP.md) describes current priorities. Use [GitHub Discussions](https://github.com/stackloomdev/causescope/discussions) for setup questions and early ideas; use Issues for reproducible bugs or work with a concrete acceptance boundary. See [SUPPORT.md](SUPPORT.md) for the complete channel guide.
 
+Testing the current beta in another application? Follow the [beta testing guide](https://stackloomdev.github.io/causescope/beta-testing) to reduce the case and sanitize public artifacts before opening a Discussion or Issue.
+
 ## Before opening an issue
 
 - Search existing issues first.

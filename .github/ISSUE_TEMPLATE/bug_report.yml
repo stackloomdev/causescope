@@ -5,7 +5,7 @@ labels: [bug, triage]
 body:
   - type: markdown
     attributes:
-      value: Search existing issues first. Remove secrets, private source code, customer data, and unredacted traces before submitting.
+      value: Search existing issues first. Follow the [beta testing guide](https://stackloomdev.github.io/causescope/beta-testing) to reduce the case. Remove secrets, private source code, customer data, and unredacted traces before submitting.
   - type: dropdown
     id: area
     attributes:

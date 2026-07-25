@@ -12,7 +12,7 @@ The local-first evidence inspector for React. Select an ordinary page element an
 [![CI](https://github.com/stackloomdev/causescope/actions/workflows/ci.yml/badge.svg)](https://github.com/stackloomdev/causescope/actions/workflows/ci.yml)
 [![license](https://img.shields.io/github/license/stackloomdev/causescope?color=737077)](LICENSE)
 
-[Try the live lab](https://stackblitz.com/fork/github/stackloomdev/causescope/tree/main/examples/stackblitz?title=CauseScope%20Live%20Lab) · [Documentation](https://stackloomdev.github.io/causescope/) · [60-second setup](https://stackloomdev.github.io/causescope/getting-started) · [Roadmap](ROADMAP.md) · [Discussions](https://github.com/stackloomdev/causescope/discussions) · [中文](README.zh-CN.md)
+[Try the live lab](https://stackblitz.com/fork/github/stackloomdev/causescope/tree/main/examples/stackblitz?title=CauseScope%20Live%20Lab) · [Documentation](https://stackloomdev.github.io/causescope/) · [60-second setup](https://stackloomdev.github.io/causescope/getting-started) · [Beta testing](https://stackloomdev.github.io/causescope/beta-testing) · [Roadmap](ROADMAP.md) · [Discussions](https://github.com/stackloomdev/causescope/discussions) · [中文](README.zh-CN.md)
 
 </div>
 
@@ -53,6 +53,8 @@ export default defineConfig({
 Start the Vite development server, click **Inspect**, and select an element. Hold <kbd>Option</kbd>/<kbd>Alt</kbd> while clicking for a shortcut; while the drawer is open, select another page element directly. Keyboard users can focus **Inspect**, press <kbd>Enter</kbd>, focus a page element, and press <kbd>Enter</kbd> or <kbd>Space</kbd>; arrow keys navigate the inspector tabs and <kbd>Escape</kbd> closes it.
 
 CauseScope only runs for `vite serve` in development. Production builds contain no instrumentation, overlay, editor endpoint, or debug attributes.
+
+Testing before stable 1.0? Use the [beta testing guide](https://stackloomdev.github.io/causescope/beta-testing) to exercise multiple evidence paths and share a sanitized minimal TypeScript reproduction.
 
 ## What the inspector reports
 

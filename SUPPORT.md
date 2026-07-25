@@ -6,6 +6,8 @@ CauseScope is maintained in public on a best-effort basis. Choosing the right ch
 
 Use [GitHub Discussions](https://github.com/stackloomdev/causescope/discussions) for installation questions, configuration help, and early design ideas. Include the CauseScope, React, Vite, Node.js, pnpm, and browser versions involved.
 
+For pre-1.0 validation, follow the [beta testing guide](https://stackloomdev.github.io/causescope/beta-testing) before sharing evidence. Start with a small public TypeScript fixture and review every screenshot, log, and trace export for private data.
+
 ## Reproducible bugs
 
 Use the [bug report form](https://github.com/stackloomdev/causescope/issues/new?template=bug_report.yml) when a problem has a minimal public reproduction. Explain which element was selected, what evidence appeared, and what evidence you expected.
