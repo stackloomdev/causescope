@@ -1,7 +1,7 @@
 import { defineConfig } from "vitepress";
 
 const base = process.env.CAUSESCOPE_DOCS_BASE ?? "/";
-const liveDemo = "https://stackblitz.com/fork/github/stackloomdev/causescope?startScript=dev";
+const liveDemo = "https://stackblitz.com/fork/github/stackloomdev/causescope?startScript=dev%3Astackblitz";
 
 export default defineConfig({
   base,

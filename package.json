@@ -22,10 +22,11 @@
     "test": "turbo run test",
     "test:e2e": "pnpm build:packages && pnpm --filter @causescope/example-vite-react-19 test:e2e && pnpm --filter @causescope/example-vite-react-18 test:e2e",
     "test:package": "node --experimental-strip-types scripts/verify-package.ts",
+    "verify:links": "node --experimental-strip-types scripts/verify-links.ts",
     "verify:production": "node --experimental-strip-types scripts/verify-production.ts",
     "typecheck": "turbo run typecheck",
     "lint": "turbo run lint",
-    "check": "pnpm typecheck && pnpm test && pnpm build && pnpm verify:production && pnpm build:stackblitz && pnpm test:package && pnpm test:e2e"
+    "check": "pnpm typecheck && pnpm test && pnpm build && pnpm verify:production && pnpm verify:links && pnpm build:stackblitz && pnpm test:package && pnpm test:e2e"
   },
   "devDependencies": {
     "@types/node": "^22.10.2",
