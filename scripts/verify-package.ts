@@ -142,8 +142,9 @@ try {
     ].join("\n"));
     writeFileSync(join(consumer, "verify-vite.ts"), [
       'import { fileURLToPath } from "node:url";',
-      'import { createServer } from "vite";',
+      'import { createServer, normalizePath } from "vite";',
       'import causeScope from "causescope/vite";',
+      "const appPath = normalizePath(fileURLToPath(new URL('./src/App.tsx', import.meta.url)));",
       "const server = await createServer({",
       "  appType: 'custom',",
       "  logLevel: 'silent',",
@@ -152,7 +153,7 @@ try {
       "  server: { middlewareMode: true },",
       "});",
       "try {",
-      "  const result = await server.transformRequest('/src/App.tsx');",
+      "  const result = await server.transformRequest(`/@fs/${appPath}`);",
       "  if (!result?.code.includes('data-causescope-node')) {",
       "    throw new Error('CauseScope did not instrument TSX through Vite');",
       "  }",
