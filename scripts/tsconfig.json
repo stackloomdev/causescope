@@ -4,8 +4,11 @@
     "types": ["node"]
   },
   "include": [
+    "release-policy.test.ts",
+    "release-policy.ts",
     "trace-export-v1-example.ts",
     "verify-public-api.ts",
+    "verify-release.ts",
     "verify-trace-contract.ts"
   ]
 }

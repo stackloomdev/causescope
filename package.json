@@ -26,12 +26,13 @@
     "verify:links": "tsx scripts/verify-links.ts",
     "verify:performance": "tsx scripts/verify-performance.ts",
     "verify:public-api": "tsc --project scripts/tsconfig.json && tsx scripts/verify-public-api.ts",
+    "verify:release": "tsc --project scripts/tsconfig.json && vitest run scripts/release-policy.test.ts && tsx scripts/verify-release.ts",
     "verify:production": "tsx scripts/verify-production.ts",
     "verify:stackblitz": "tsx scripts/verify-stackblitz.ts",
     "verify:trace-contract": "tsc --project scripts/tsconfig.json && tsx scripts/verify-trace-contract.ts",
     "typecheck": "turbo run typecheck",
     "lint": "turbo run lint",
-    "check": "pnpm typecheck && pnpm test && pnpm build && pnpm verify:production && pnpm verify:performance && pnpm verify:public-api && pnpm verify:links && pnpm verify:trace-contract && pnpm verify:stackblitz && pnpm test:package && pnpm test:e2e"
+    "check": "pnpm typecheck && pnpm test && pnpm build && pnpm verify:production && pnpm verify:performance && pnpm verify:public-api && pnpm verify:release && pnpm verify:links && pnpm verify:trace-contract && pnpm verify:stackblitz && pnpm test:package && pnpm test:e2e"
   },
   "devDependencies": {
     "@types/node": "^22.10.2",

@@ -12,6 +12,7 @@ All notable changes to CauseScope will be documented here. The format follows [K
 - Added a bounded Firefox 153.0 CI smoke lane for exact source selection, state transitions, and redacted trace exports.
 - Added a deterministic public API snapshot and release gate for all five npm entrypoints and their published declaration graph.
 - Added an external beta validation guide with scenario coverage, minimal public reproductions, feedback routing, and artifact sanitization rules.
+- Added deterministic beta/RC/stable release-policy checks and a maintainer runbook without publishing a new package.
 
 ## [1.0.0-beta.3] - 2026-07-25
 

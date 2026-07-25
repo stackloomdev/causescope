@@ -136,7 +136,7 @@ pnpm install
 pnpm check
 ```
 
-完整检查包含类型检查、单元测试、全部构建、生产产物无残留与性能预算扫描、隔离 StackBlitz 构建、Vite 5–8 独立安装消费端，以及 Playwright 端到端测试。
+完整检查包含类型检查、单元测试、全部构建、生产产物无残留与性能预算扫描、公共 API 与发布策略校验、隔离 StackBlitz 构建、Vite 5–8 独立安装消费端，以及 Playwright 端到端测试。
 
 欢迎提交 Issue 和 Pull Request。参与前请先阅读[路线图](ROADMAP.md)、[贡献指南](CONTRIBUTING.md)、[支持说明](SUPPORT.md)、[安全策略](SECURITY.md)和[行为准则](CODE_OF_CONDUCT.md)。安装问题和早期想法请先发到 [Discussions](https://github.com/stackloomdev/causescope/discussions)。
 

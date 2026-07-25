@@ -1,0 +1,62 @@
+import { describe, expect, it } from "vitest";
+import {
+  allowedLiveLabVersions,
+  assertInstallDocumentation,
+  assertLiveLabVersion,
+  installSpecifier,
+  parseReleaseVersion,
+} from "./release-policy.js";
+
+describe("release policy", () => {
+  it("maps the supported version forms to npm channels", () => {
+    expect(parseReleaseVersion("1.0.0-beta.3").channel).toBe("beta");
+    expect(parseReleaseVersion("1.0.0-rc.1").channel).toBe("rc");
+    expect(parseReleaseVersion("1.0.0").channel).toBe("latest");
+    expect(installSpecifier("beta")).toBe("causescope@beta");
+    expect(installSpecifier("rc")).toBe("causescope@rc");
+    expect(installSpecifier("latest")).toBe("causescope");
+  });
+
+  it("rejects unsupported or unnumbered prerelease channels", () => {
+    expect(() => parseReleaseVersion("1.0.0-next.1")).toThrow("Unsupported release version");
+    expect(() => parseReleaseVersion("1.0.0-rc")).toThrow("Unsupported release version");
+  });
+
+  it("rejects public install documentation for the wrong npm channel", () => {
+    expect(() => assertInstallDocumentation("pnpm add -D causescope@beta", "rc", "README.md")).toThrow(
+      "must document causescope@rc",
+    );
+    expect(() => assertInstallDocumentation("pnpm add -D causescope@beta", "latest", "README.md")).toThrow(
+      "still points stable users to a prerelease",
+    );
+    expect(() => assertInstallDocumentation("pnpm add -D causescope@rc", "rc", "README.md")).not.toThrow();
+  });
+
+  it("allows the published beta immediately before the first release candidate", () => {
+    expect(allowedLiveLabVersions("1.0.0-rc.1", ["1.0.0-rc.1", "1.0.0-beta.3"])).toEqual([
+      "1.0.0-rc.1",
+      "1.0.0-beta.3",
+    ]);
+  });
+
+  it("allows the published release candidate immediately before stable", () => {
+    expect(allowedLiveLabVersions("1.0.0", ["1.0.0", "1.0.0-rc.1", "1.0.0-beta.3"])).toEqual([
+      "1.0.0",
+      "1.0.0-rc.1",
+    ]);
+  });
+
+  it("rejects a live lab that is more than one published release behind", () => {
+    expect(() => assertLiveLabVersion(
+      "1.0.0",
+      "1.0.0-beta.3",
+      ["1.0.0", "1.0.0-rc.1", "1.0.0-beta.3"],
+    )).toThrow("immediate predecessor");
+  });
+
+  it("rejects release history that was not prepared for the package version", () => {
+    expect(() => allowedLiveLabVersions("1.0.0-rc.1", ["1.0.0-beta.3"])).toThrow(
+      "must match the newest dated changelog release",
+    );
+  });
+});
