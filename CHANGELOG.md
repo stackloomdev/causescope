@@ -4,6 +4,8 @@ All notable changes to CauseScope will be documented here. The format follows [K
 
 ## [Unreleased]
 
+## [1.0.0-beta.3] - 2026-07-25
+
 ### Added
 
 - Added React SWC browser coverage plus Node 18 and Windows package-verification lanes.
