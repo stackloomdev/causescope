@@ -2,6 +2,7 @@ import { equal, ok } from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import { join, resolve } from "node:path";
 import {
+  assertDescendingReleaseHistory,
   assertInstallDocumentation,
   installSpecifier,
   parseReleaseVersion,
@@ -66,6 +67,7 @@ equal(
   `The newest dated CHANGELOG.md release must be ${publicVersion}`,
 );
 equal(new Set(releases.map((release) => release.version)).size, releases.length, "Changelog versions must be unique");
+assertDescendingReleaseHistory(releases.map((release) => release.version));
 for (const release of releases) {
   parseReleaseVersion(release.version);
   const parsedDate = new Date(`${release.date}T00:00:00.000Z`);

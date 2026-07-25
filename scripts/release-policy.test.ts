@@ -24,12 +24,27 @@ describe("release policy", () => {
 
   it("rejects public install documentation for the wrong npm channel", () => {
     expect(() => assertInstallDocumentation("pnpm add -D causescope@beta", "rc", "README.md")).toThrow(
-      "must document causescope@rc",
+      "must use only causescope@rc",
     );
     expect(() => assertInstallDocumentation("pnpm add -D causescope@beta", "latest", "README.md")).toThrow(
-      "still points stable users to a prerelease",
+      "must use only causescope",
     );
     expect(() => assertInstallDocumentation("pnpm add -D causescope@rc", "rc", "README.md")).not.toThrow();
+  });
+
+  it("rejects every wrong install specifier even when the expected channel is also present", () => {
+    expect(() => assertInstallDocumentation(
+      "pnpm add -D causescope@beta\nnpm install causescope",
+      "beta",
+      "README.md",
+    )).toThrow("found causescope@beta, causescope");
+    expect(() => assertInstallDocumentation(
+      "pnpm add -D causescope@rc\nUse `causescope@1.0.0-beta.3`.",
+      "rc",
+      "README.md",
+    )).toThrow("causescope@1.0.0-beta.3");
+    expect(() => assertInstallDocumentation("pnpm add -D causescope@1.0.0-rc.1", "latest", "README.md"))
+      .toThrow("causescope@1.0.0-rc.1");
   });
 
   it("allows the published beta immediately before the first release candidate", () => {
@@ -37,6 +52,13 @@ describe("release policy", () => {
       "1.0.0-rc.1",
       "1.0.0-beta.3",
     ]);
+  });
+
+  it("orders repeated beta and release-candidate versions by SemVer precedence", () => {
+    expect(allowedLiveLabVersions(
+      "1.0.0-rc.2",
+      ["1.0.0-rc.2", "1.0.0-rc.1", "1.0.0-beta.4", "1.0.0-beta.3"],
+    )).toEqual(["1.0.0-rc.2", "1.0.0-rc.1"]);
   });
 
   it("allows the published release candidate immediately before stable", () => {
@@ -52,6 +74,24 @@ describe("release policy", () => {
       "1.0.0-beta.3",
       ["1.0.0", "1.0.0-rc.1", "1.0.0-beta.3"],
     )).toThrow("immediate predecessor");
+  });
+
+  it("rejects out-of-order and future prereleases in changelog history", () => {
+    expect(() => allowedLiveLabVersions(
+      "1.0.0-beta.4",
+      ["1.0.0-beta.4", "1.0.0-beta.2", "1.0.0-beta.3"],
+    )).toThrow("strictly newest-to-oldest by SemVer");
+    expect(() => allowedLiveLabVersions(
+      "1.0.0-rc.1",
+      ["1.0.0-rc.1", "1.0.0-rc.2", "1.0.0-beta.3"],
+    )).toThrow("strictly newest-to-oldest by SemVer");
+  });
+
+  it("rejects duplicate changelog versions in the predecessor policy", () => {
+    expect(() => allowedLiveLabVersions(
+      "1.0.0-rc.1",
+      ["1.0.0-rc.1", "1.0.0-rc.1", "1.0.0-beta.3"],
+    )).toThrow("strictly newest-to-oldest by SemVer");
   });
 
   it("rejects release history that was not prepared for the package version", () => {
