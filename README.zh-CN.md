@@ -115,6 +115,8 @@ CI 会把打包后的 npm 产物分别安装进隔离的 Vite 5.4、6.4、7.3、
 
 产物体积也有独立门禁：浏览器 runtime 图、Vite 插件、可选适配器、发布文件和 npm tarball 都受[性能预算](https://stackloomdev.github.io/causescope/performance)约束。
 
+五个受支持的 npm 入口及其完整声明图由可审阅的[公共 API 快照](https://stackloomdev.github.io/causescope/public-api)保护。
+
 ## 隐私与边界
 
 CauseScope 不需要账号，没有遥测、远程服务或上传链路。Network 与 Storage 追踪只在开发环境工作，并可分别关闭。它只记录当前页面运行期间真正访问过的 Storage key，不会枚举浏览器存储。

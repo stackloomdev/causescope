@@ -22,14 +22,16 @@
     "test:e2e": "pnpm build:packages && pnpm --filter @causescope/example-vite-react-19 test:e2e && pnpm --filter @causescope/example-vite-react-18 test:e2e && pnpm --filter @causescope/example-vite-react-swc test:e2e",
     "test:e2e:firefox": "pnpm build:packages && pnpm --filter @causescope/example-vite-react-19 test:e2e:firefox",
     "test:package": "tsx scripts/verify-package.ts",
+    "snapshot:public-api": "pnpm build:packages && tsx scripts/verify-public-api.ts --write",
     "verify:links": "tsx scripts/verify-links.ts",
     "verify:performance": "tsx scripts/verify-performance.ts",
+    "verify:public-api": "tsc --project scripts/tsconfig.json && tsx scripts/verify-public-api.ts",
     "verify:production": "tsx scripts/verify-production.ts",
     "verify:stackblitz": "tsx scripts/verify-stackblitz.ts",
     "verify:trace-contract": "tsc --project scripts/tsconfig.json && tsx scripts/verify-trace-contract.ts",
     "typecheck": "turbo run typecheck",
     "lint": "turbo run lint",
-    "check": "pnpm typecheck && pnpm test && pnpm build && pnpm verify:production && pnpm verify:performance && pnpm verify:links && pnpm verify:trace-contract && pnpm verify:stackblitz && pnpm test:package && pnpm test:e2e"
+    "check": "pnpm typecheck && pnpm test && pnpm build && pnpm verify:production && pnpm verify:performance && pnpm verify:public-api && pnpm verify:links && pnpm verify:trace-contract && pnpm verify:stackblitz && pnpm test:package && pnpm test:e2e"
   },
   "devDependencies": {
     "@types/node": "^22.10.2",

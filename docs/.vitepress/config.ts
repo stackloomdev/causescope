@@ -46,6 +46,7 @@ export default defineConfig({
         items: [
           { text: "Architecture", link: "/architecture" },
           { text: "Performance budgets", link: "/performance" },
+          { text: "Public API policy", link: "/public-api" },
           { text: "Validation", link: "/validation" },
           { text: "Community and support", link: "/community" },
         ],
