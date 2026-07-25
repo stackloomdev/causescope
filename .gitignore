@@ -1,6 +1,7 @@
 node_modules/
 .pnpm-store/
 .turbo/
+docs/.vitepress/cache/
 dist/
 coverage/
 *.tsbuildinfo

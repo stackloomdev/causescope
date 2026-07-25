@@ -15,6 +15,10 @@ All notable changes to CauseScope will be documented here. The format follows [K
 - Expanded the public Vite peer range to include Vite 7 and 8.
 - Made the source-opening action editor-agnostic.
 
+### Security
+
+- Upgraded repository test, example, and documentation tooling to patched Vitest and Vite releases while retaining Vite 5 coverage in the isolated compatibility matrix.
+
 ## [1.0.0-beta.1] - 2026-07-24
 
 First public beta.
