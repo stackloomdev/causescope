@@ -606,6 +606,7 @@ function TimelinePanel({ timeline }: { timeline: RuntimeEvent[] }): JSX.Element 
 interface DrawerProps {
   activeTab: Tab;
   drawerWidth: number;
+  selectionRevision: number;
   inspection: InspectionResult;
   notice: string;
   onClose: () => void;
@@ -619,6 +620,7 @@ interface DrawerProps {
 function Drawer({
   activeTab,
   drawerWidth,
+  selectionRevision,
   inspection,
   notice,
   onClose,
@@ -636,7 +638,7 @@ function Drawer({
 
   useEffect(() => {
     (isStatic ? closeButtonRef.current : tabRefs.current[0])?.focus();
-  }, [inspection.nodeId, isStatic]);
+  }, [isStatic, selectionRevision]);
 
   const startResize = (event: JSX.TargetedPointerEvent<HTMLButtonElement>): void => {
     resizeState.current = { startX: event.clientX, startWidth: drawerWidth };
@@ -736,6 +738,7 @@ function Drawer({
           role: "tabpanel",
           id: "cs-tabpanel",
           "aria-labelledby": `cs-tab-${activeTab.toLowerCase()}`,
+          tabIndex: 0,
         } : {})}
       >
         {isStatic || activeTab === "Why" ? <WhyPanel inspection={inspection} /> : null}
@@ -756,6 +759,7 @@ function OverlayApp({ runtime, host }: { runtime: CauseScopeRuntime; host: HTMLE
   const [highlight, setHighlight] = useState<HighlightBox | null>(null);
   const [inspectMode, setInspectMode] = useState(false);
   const [inspection, setInspection] = useState<InspectionResult | null>(null);
+  const [selectionRevision, setSelectionRevision] = useState(0);
   const [notice, setNotice] = useState("");
   const selectedElement = useRef<Element | null>(null);
   const suppressClickTarget = useRef<Element | null>(null);
@@ -770,6 +774,7 @@ function OverlayApp({ runtime, host }: { runtime: CauseScopeRuntime; host: HTMLE
     const inspect = (target: Element): void => {
       selectedElement.current = target;
       setInspection(runtime.inspectElement(target));
+      setSelectionRevision((current) => current + 1);
       setActiveTab("Why");
       setDrawerOpen(true);
       setInspectMode(false);
@@ -1020,6 +1025,7 @@ function OverlayApp({ runtime, host }: { runtime: CauseScopeRuntime; host: HTMLE
         <Drawer
           activeTab={activeTab}
           drawerWidth={drawerWidth}
+          selectionRevision={selectionRevision}
           inspection={inspection}
           notice={notice}
           onClose={() => {

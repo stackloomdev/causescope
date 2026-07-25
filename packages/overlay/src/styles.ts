@@ -304,6 +304,11 @@ export const overlayStyles = `
     scrollbar-color: #3b3d40 transparent;
   }
 
+  .cs-content:focus-visible {
+    outline: 2px solid var(--cs-accent);
+    outline-offset: -4px;
+  }
+
   .cs-panel { padding: 22px; }
   .cs-source-title,
   .cs-section-title { margin-bottom: 14px; }

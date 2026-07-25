@@ -66,7 +66,17 @@ test("opens, navigates, and closes the inspector with keyboard input only", asyn
   }
 
   await page.keyboard.press("Home");
-  await expect(drawer.getByRole("tab", { name: "Why" })).toBeFocused();
+  const whyTab = drawer.getByRole("tab", { name: "Why" });
+  await expect(whyTab).toBeFocused();
+  await page.keyboard.press("Tab");
+  await expect(tabPanel).toBeFocused();
+  await expect(tabPanel).toHaveCSS("outline-style", "solid");
+  expect(await tabPanel.evaluate((element) => element.scrollHeight > element.clientHeight)).toBe(true);
+  const initialScrollTop = await tabPanel.evaluate((element) => element.scrollTop);
+  await page.keyboard.press("PageDown");
+  await expect.poll(() => tabPanel.evaluate((element) => element.scrollTop)).toBeGreaterThan(initialScrollTop);
+  await page.keyboard.press("Shift+Tab");
+  await expect(whyTab).toBeFocused();
   await page.keyboard.press("End");
   await expect(drawer.getByRole("tab", { name: "Timeline" })).toBeFocused();
   await page.keyboard.press("Escape");
@@ -97,6 +107,9 @@ test("keeps state and values isolated across repeated order rows", async ({ page
   await expect(inspector(page)).toContainText("src/pages/OrdersPage.tsx:43:51");
 
   await page.getByText("Avery Chen", { exact: true }).click();
+  await expect(inspector(page).getByRole("tab", { name: "Why" })).toBeFocused();
+  await expect(inspector(page).getByRole("tab", { name: "Why" })).toHaveAttribute("aria-selected", "true");
+  await expect(inspector(page).getByRole("tab", { name: "Values" })).toHaveAttribute("aria-selected", "false");
   await inspector(page).getByRole("tab", { name: "Values" }).click();
   await expect(inspector(page)).toContainText("\"Avery Chen\"");
   await expect(inspector(page)).not.toContainText("\"Mina Park\"");
