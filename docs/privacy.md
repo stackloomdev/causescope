@@ -20,6 +20,8 @@ Built-in rules redact authorization, cookie, API-key, token, password, and secre
 
 No automatic redaction system can understand every domain-specific secret. Add project-specific keys and review every export before sharing it.
 
+The exported fields, compatibility rules, and synthetic example are documented in the [trace export contract](/trace-export).
+
 ## Recording bounds
 
 Defaults limit the runtime to 10,000 trace nodes, 200 timeline events, 1 MB per response, 20 MB of response data in total, object depth 5, and 100 array entries. Object getters are never invoked for diagnostics.

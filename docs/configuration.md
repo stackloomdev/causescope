@@ -33,3 +33,5 @@ causeScope({
 | `redact` | secure defaults | Adds redaction keys; defaults are always retained. |
 
 Configured redaction entries extend the built-in list rather than replacing it.
+
+JSON downloads follow the versioned [trace export contract](/trace-export). Recording limits and redaction are applied before the document is created.

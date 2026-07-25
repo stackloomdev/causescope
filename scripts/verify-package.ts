@@ -122,7 +122,7 @@ try {
       include: ["index.ts", "verify-vite.ts"],
     }, null, 2));
     writeFileSync(join(consumer, "index.ts"), [
-      'import { getCauseScopeRuntime, type CauseScopeRuntime } from "causescope";',
+      'import { getCauseScopeRuntime, type CauseScopeRuntime, type TraceExport, type TraceExportVersion } from "causescope";',
       'import { mountCauseScopeOverlay } from "causescope/runtime";',
       'import causeScope, { type CauseScopeOptions } from "causescope/vite";',
       'import { reactQueryAdapter } from "causescope/adapters/react-query";',
@@ -130,10 +130,14 @@ try {
       'const options: CauseScopeOptions = { traceNetwork: false, traceStorage: false };',
       'const plugin = causeScope(options);',
       'const runtime: CauseScopeRuntime = getCauseScopeRuntime();',
+      'const traceVersion: TraceExportVersion = 1;',
+      'const exportedTrace: TraceExport | undefined = undefined;',
       'mountCauseScopeOverlay(runtime);',
       'reactQueryAdapter({ queryClient: { getQueryCache: () => ({ getAll: () => [], subscribe: () => () => undefined }) } });',
       'zustandAdapter({ stores: { demo: { getState: () => ({}), subscribe: () => () => undefined } } });',
       'void plugin;',
+      'void traceVersion;',
+      'void exportedTrace;',
     ].join("\n"));
     writeFileSync(join(sourceDirectory, "App.tsx"), [
       "const label = 'Trace me';",

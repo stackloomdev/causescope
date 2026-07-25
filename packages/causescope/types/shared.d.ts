@@ -255,8 +255,10 @@ export interface StoreUpdate {
   event?: EventContext;
 }
 
+export type TraceExportVersion = 1;
+
 export interface TraceExport {
-  version: 1;
+  version: TraceExportVersion;
   generatedAt: string;
   element: InspectionResult["element"];
   source?: SourceLocation;
