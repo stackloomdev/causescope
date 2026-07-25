@@ -50,7 +50,7 @@ export default defineConfig({
 });
 ```
 
-Start the Vite development server, click **Inspect**, and select an element. Hold <kbd>Option</kbd>/<kbd>Alt</kbd> while clicking for a shortcut; while the drawer is open, select another page element directly.
+Start the Vite development server, click **Inspect**, and select an element. Hold <kbd>Option</kbd>/<kbd>Alt</kbd> while clicking for a shortcut; while the drawer is open, select another page element directly. Keyboard users can focus **Inspect**, press <kbd>Enter</kbd>, focus a page element, and press <kbd>Enter</kbd> or <kbd>Space</kbd>; arrow keys navigate the inspector tabs and <kbd>Escape</kbd> closes it.
 
 CauseScope only runs for `vite serve` in development. Production builds contain no instrumentation, overlay, editor endpoint, or debug attributes.
 

@@ -50,7 +50,7 @@ export default defineConfig({
 });
 ```
 
-启动 Vite 开发服务，点击右下角的 **Inspect** 并选择元素；也可以按住 <kbd>Option</kbd>/<kbd>Alt</kbd> 点击。抽屉打开后，可直接选择页面上的另一个元素，无需再次进入检查模式。
+启动 Vite 开发服务，点击右下角的 **Inspect** 并选择元素；也可以按住 <kbd>Option</kbd>/<kbd>Alt</kbd> 点击。键盘用户可将焦点移到 **Inspect**，按 <kbd>Enter</kbd>，再聚焦页面元素并按 <kbd>Enter</kbd> 或 <kbd>Space</kbd>；方向键切换面板标签，<kbd>Escape</kbd> 关闭。抽屉打开后，可直接选择页面上的另一个元素，无需再次进入检查模式。
 
 CauseScope 只在开发模式的 `vite serve` 中运行。生产包不包含插桩、面板、编辑器接口或调试属性。
 

@@ -36,8 +36,6 @@ export const overlayStyles = `
     outline-offset: 3px;
   }
 
-  .cs-drawer:focus { outline: none; }
-
   .cs-toggle,
   .cs-drawer {
     pointer-events: auto;
@@ -304,6 +302,11 @@ export const overlayStyles = `
     overflow: auto;
     overscroll-behavior: contain;
     scrollbar-color: #3b3d40 transparent;
+  }
+
+  .cs-content:focus-visible {
+    outline: 2px solid var(--cs-accent);
+    outline-offset: -4px;
   }
 
   .cs-panel { padding: 22px; }

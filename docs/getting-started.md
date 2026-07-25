@@ -30,7 +30,7 @@ export default defineConfig({
 });
 ```
 
-Run the development server. Click the **Inspect** control or hold <kbd>Option</kbd>/<kbd>Alt</kbd> while clicking an element. While the drawer is open, simply choose another page element to switch the selection. Press <kbd>Escape</kbd> to close.
+Run the development server. Click the **Inspect** control or hold <kbd>Option</kbd>/<kbd>Alt</kbd> while clicking an element. With a keyboard, move focus to **Inspect**, press <kbd>Enter</kbd>, move focus to a page element, then press <kbd>Enter</kbd> or <kbd>Space</kbd>. Use the arrow keys to move through inspector tabs. While the drawer is open, choose another page element to switch the selection. Press <kbd>Escape</kbd> to close; focus returns to **Inspect**.
 
 ## Validate production behavior
 
