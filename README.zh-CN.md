@@ -12,7 +12,7 @@
 [![CI](https://github.com/stackloomdev/causescope/actions/workflows/ci.yml/badge.svg)](https://github.com/stackloomdev/causescope/actions/workflows/ci.yml)
 [![license](https://img.shields.io/github/license/stackloomdev/causescope?color=737077)](LICENSE)
 
-[在线实验室](https://stackblitz.com/fork/github/stackloomdev/causescope?startScript=dev) · [文档](https://stackloomdev.github.io/causescope/) · [60 秒接入](https://stackloomdev.github.io/causescope/getting-started) · [English](README.md)
+[在线实验室](https://stackblitz.com/fork/github/stackloomdev/causescope?startScript=dev%3Astackblitz) · [文档](https://stackloomdev.github.io/causescope/) · [60 秒接入](https://stackloomdev.github.io/causescope/getting-started) · [English](README.md)
 
 </div>
 

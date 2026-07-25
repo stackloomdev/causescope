@@ -12,7 +12,7 @@ The local-first evidence inspector for React. Select an ordinary page element an
 [![CI](https://github.com/stackloomdev/causescope/actions/workflows/ci.yml/badge.svg)](https://github.com/stackloomdev/causescope/actions/workflows/ci.yml)
 [![license](https://img.shields.io/github/license/stackloomdev/causescope?color=737077)](LICENSE)
 
-[Try the live lab](https://stackblitz.com/fork/github/stackloomdev/causescope?startScript=dev) · [Documentation](https://stackloomdev.github.io/causescope/) · [60-second setup](https://stackloomdev.github.io/causescope/getting-started) · [中文](README.zh-CN.md)
+[Try the live lab](https://stackblitz.com/fork/github/stackloomdev/causescope?startScript=dev%3Astackblitz) · [Documentation](https://stackloomdev.github.io/causescope/) · [60-second setup](https://stackloomdev.github.io/causescope/getting-started) · [中文](README.zh-CN.md)
 
 </div>
 

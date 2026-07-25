@@ -13,7 +13,7 @@ description: Trace rendered React UI back to the exact TSX, branch, state, props
       <p class="cs-lede">Click a rendered element. CauseScope follows it back to the exact TSX, live expression, deciding branch, state transition, prop, store, or request that produced it.</p>
       <div class="cs-actions">
         <a class="cs-button cs-button-primary" href="./getting-started">Install in one minute <span aria-hidden="true">↗</span></a>
-        <a class="cs-button cs-button-secondary" href="https://stackblitz.com/fork/github/stackloomdev/causescope?startScript=dev">Try the live lab</a>
+        <a class="cs-button cs-button-secondary" href="https://stackblitz.com/fork/github/stackloomdev/causescope?startScript=dev%3Astackblitz">Try the live lab</a>
       </div>
       <div class="cs-proofline" aria-label="Compatibility and privacy facts">
         <span>React 18–19</span><span>Vite 5–8</span><span>No account</span><span>Zero production code</span>
