@@ -13,6 +13,9 @@ export default defineConfig({
   },
   webServer: {
     command: "pnpm dev:e2e",
+    env: {
+      CAUSESCOPE_E2E: "1",
+    },
     url: "http://127.0.0.1:5190",
     reuseExistingServer: false,
     timeout: 120_000,

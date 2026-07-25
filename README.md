@@ -108,13 +108,15 @@ React Query provenance includes the query key, status, fetch status, and update 
 | Integration | Supported |
 | --- | --- |
 | React | 18 and 19 |
+| React rendering | Portals, Suspense, Error Boundaries, and Vite Fast Refresh |
 | Vite | 5, 6, 7, and 8 |
 | React Vite plugin | Babel (`@vitejs/plugin-react`) and SWC (`@vitejs/plugin-react-swc`) |
+| Styling | CSS Modules and Tailwind CSS 4 |
 | Node.js | 18.18+ for Vite 5; follow the selected Vite version’s Node.js requirement |
 | TypeScript | First-class; authored application and tooling code uses TS/TSX, with no JS/JSX source files |
 | Package managers | Any npm-compatible client; this repository uses **pnpm Workspace + Turborepo** |
 
-CI installs the packed npm artifact into isolated Vite 5.4, 6.4, 7.3, and 8.1 consumers and performs a real TSX transform. [`examples/`](examples) adds React 18/19, Babel/SWC, multi-page, multi-component, multi-file, React Query, and Zustand browser scenarios.
+CI installs the packed npm artifact into isolated Vite 5.4, 6.4, 7.3, and 8.1 consumers and performs a real TSX transform. [`examples/`](examples) adds React 18/19, Babel/SWC, multi-page, multi-component, multi-file, Portal, Suspense, Error Boundary, Fast Refresh, React Query, and Zustand browser scenarios.
 
 ## Privacy and limits
 

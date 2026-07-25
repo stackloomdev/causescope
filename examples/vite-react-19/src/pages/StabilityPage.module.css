@@ -1,0 +1,124 @@
+.page {
+  position: relative;
+}
+
+.moduleCard {
+  isolation: isolate;
+  position: relative;
+  overflow: hidden;
+}
+
+.moduleCard::before {
+  position: absolute;
+  inset: 0 auto auto 0;
+  width: 100%;
+  height: 2px;
+  background: linear-gradient(90deg, #ff385c, transparent 72%);
+  content: "";
+}
+
+.controlRow {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-top: 20px;
+}
+
+.stage {
+  min-height: 150px;
+  margin-top: 20px;
+  padding: 20px;
+  border: 1px dashed rgba(255, 255, 255, 0.14);
+  border-radius: 16px;
+  background: rgba(10, 11, 12, 0.62);
+}
+
+.stage h2,
+.stage h3,
+.hmrCard h2 {
+  margin: 0;
+  color: #f4f2ef;
+  font-size: 18px;
+}
+
+.stage p,
+.hmrCard p {
+  margin: 8px 0 0;
+  color: #898681;
+  font-size: 13px;
+  line-height: 1.6;
+}
+
+.loading {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  color: #ff8097 !important;
+}
+
+.loading::before {
+  width: 9px;
+  height: 9px;
+  border-radius: 999px;
+  background: #ff385c;
+  box-shadow: 0 0 0 5px rgba(255, 56, 92, 0.12);
+  content: "";
+}
+
+.hmrCard {
+  display: grid;
+  gap: 14px;
+  padding: 20px;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 16px;
+  background: #111315;
+}
+
+.hmrValue {
+  color: #ff8097;
+  font-family: "SFMono-Regular", Consolas, monospace;
+  font-size: 13px;
+}
+
+.portalBackdrop {
+  position: fixed;
+  z-index: 2147483000;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  padding: 24px;
+  background: rgba(4, 5, 6, 0.78);
+  backdrop-filter: blur(8px);
+}
+
+.portalDialog {
+  width: min(100%, 480px);
+  padding: 28px;
+  border: 1px solid rgba(255, 255, 255, 0.16);
+  border-radius: 22px;
+  background: #181a1c;
+  box-shadow: 0 28px 90px rgba(0, 0, 0, 0.55);
+}
+
+.portalDialog h2 {
+  margin: 0;
+  color: #f4f2ef;
+  font-size: 22px;
+}
+
+.portalDialog p {
+  margin: 10px 0 22px;
+  color: #898681;
+  font-size: 14px;
+  line-height: 1.6;
+}
+
+@media (max-width: 700px) {
+  .controlRow {
+    flex-direction: column;
+  }
+
+  .controlRow button {
+    width: 100%;
+  }
+}
