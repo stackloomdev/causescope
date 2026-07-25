@@ -9,8 +9,8 @@ importers:
   .:
     dependencies:
       causescope:
-        specifier: 1.0.0-beta.2
-        version: 1.0.0-beta.2(vite@8.1.5)
+        specifier: 1.0.0-beta.3
+        version: 1.0.0-beta.3(vite@8.1.5)
       react:
         specifier: 19.2.8
         version: 19.2.8
@@ -284,8 +284,8 @@ packages:
   caniuse-lite@1.0.30001806:
     resolution: {integrity: sha512-72Cuvd95zbSYPKq6Fhg8eDJRlzgWDf7/mtoZv6Qe/DYNCEBdNxoA3+rZAU2ZhGCpZlns3EssFavaZomckT5Uuw==}
 
-  causescope@1.0.0-beta.2:
-    resolution: {integrity: sha512-iYrYkIu60VjvPvAyfCD+EWticx3kYKuGEIfMQTogMK7BTWmFElFC2ZmSZO95jPM2HoMeSN5+klbB2ul+Q+YFJw==}
+  causescope@1.0.0-beta.3:
+    resolution: {integrity: sha512-6X/gFNwVpWOFgbQrtLLlmAg7dNNee3BCUedop7D0aLIKo3jRM1DF/6rJf70X4DX8AhP5H6rUiMJOcesEfdY0tg==}
     engines: {node: '>=18.18.0'}
     peerDependencies:
       vite: '>=5.0.0 <9.0.0'
@@ -789,7 +789,7 @@ snapshots:
 
   caniuse-lite@1.0.30001806: {}
 
-  causescope@1.0.0-beta.2(vite@8.1.5):
+  causescope@1.0.0-beta.3(vite@8.1.5):
     dependencies:
       '@babel/core': 7.29.7
       '@babel/generator': 7.29.7
