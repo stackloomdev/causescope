@@ -1,32 +1,39 @@
 <div align="center">
 
+<img src="docs/public/mark.svg" width="72" alt="CauseScope 标志" />
+
 # CauseScope
 
 **点击任意界面，追踪它为何出现。**
 
-面向 React + Vite 的本地优先溯源检查器。选中一个元素，就能沿着真实证据回到 TSX、表达式、状态、Props、Store 和网络数据。
+面向 React 的本地优先证据检查器。选中一个普通页面元素，就能沿着真实证据回到精确 TSX、实时判断、状态更新、Props、Store 或网络请求。
 
-[快速开始](docs/getting-started.md) · [配置](docs/configuration.md) · [适配器](docs/adapters.md) · [隐私](docs/privacy.md) · [English](README.md)
+[![npm](https://img.shields.io/npm/v/causescope?label=npm&color=ff385c)](https://www.npmjs.com/package/causescope)
+[![CI](https://github.com/stackloomdev/causescope/actions/workflows/ci.yml/badge.svg)](https://github.com/stackloomdev/causescope/actions/workflows/ci.yml)
+[![license](https://img.shields.io/github/license/stackloomdev/causescope?color=737077)](LICENSE)
+
+[在线实验室](https://stackblitz.com/fork/github/stackloomdev/causescope?startScript=dev) · [文档](https://stackloomdev.github.io/causescope/) · [60 秒接入](https://stackloomdev.github.io/causescope/getting-started) · [English](README.md)
 
 </div>
 
-![CauseScope 演示：从编辑后的 React 元素追踪到源码与状态](docs/assets/causescope-demo.gif)
+![CauseScope 从 React 页面元素追踪到源码与实时状态](docs/assets/causescope-demo.gif)
 
-## 为什么使用 CauseScope？
+## 找到表象背后的答案
 
-React DevTools 能告诉你组件里有什么；CauseScope 专注于另一个问题：**这块具体的 UI 为什么会这样显示？**
+“为什么这个按钮是 disabled？”只是一个有用场景，不是写死的产品模型。CauseScope 可以选择按钮、普通文本、输入框、列表以及其他 DOM 元素，并展示这个元素真正存在的证据：
 
-- 从页面元素精确定位到 TSX 文件、行和列。
-- 查看 JSX 表达式、实时操作数、结果和真正决定分支的条件。
-- 追踪真实发生过的 `useState` / `useReducer` 更新，不伪造历史。
-- 将一层 Props 追溯到父组件的 JSX 调用位置。
-- 把值关联到 Fetch、XHR、React Query、Zustand、LocalStorage 或 SessionStorage。
-- 导出经过二次脱敏的 JSON 或 Markdown 调试证据。
-- 在生产构建中完全移除检查器和插桩。
+```text
+<button disabled={!canRefund}>Refund order</button>
+                     │
+                     ├─ canRefund → false
+                     ├─ order.status === "paid" → false
+                     ├─ order.status = "pending"
+                     └─ GET /api/orders/4821 · 200
+```
 
-CauseScope 使用隔离在 Shadow DOM 内的 Preact 面板，不需要账号、API Key、浏览器扩展或远程服务。
+如果选中的是静态文本，或者不存在动态判断，CauseScope 就只展示精确源码与组件位置。证据缺失或存在歧义时会明确标记 unavailable，不会编造结论。
 
-## 快速开始
+## 一分钟接入
 
 ```bash
 pnpm add -D causescope@beta
@@ -43,13 +50,36 @@ export default defineConfig({
 });
 ```
 
-启动 Vite 开发服务，点击右下角的 **Inspect**，然后选择任意元素。也可以按住 <kbd>Option</kbd>/<kbd>Alt</kbd> 直接点击。
+启动 Vite 开发服务，点击右下角的 **Inspect** 并选择元素；也可以按住 <kbd>Option</kbd>/<kbd>Alt</kbd> 点击。抽屉打开后，可直接选择页面上的另一个元素，无需再次进入检查模式。
 
-插件只在开发模式的 `vite serve` 中生效。生产包不会包含 CauseScope 插桩、面板、编辑器接口或调试属性。
+CauseScope 只在开发模式的 `vite serve` 中运行。生产包不包含插桩、面板、编辑器接口或调试属性。
+
+## 面板展示什么
+
+| 视图 | 证据 |
+| --- | --- |
+| Why | 源码片段、表达式结果、操作数、条件树、隐藏分支、数据来源 |
+| Values | 当前组件实例的 Props 与 Hook State |
+| State | 初始值、最近一次真实 Setter/Reducer 更新、源码、触发事件 |
+| Network | Fetch/XHR 元数据、响应大小，以及关联字段路径 |
+| Timeline | DOM 事件 → Handler → State/Store 更新 → Render → 表达式变化 |
+
+同时提供精确文件、行、列坐标，以及不绑定具体 IDE 的 **Open in editor** 操作。
+
+## 与现有工具的分工
+
+CauseScope 是现有开发工具的补充，而不是替代品。
+
+| 工具类别 | 最擅长 | 证据深度 |
+| --- | --- | --- |
+| React DevTools | 组件树、Props、Hooks | 组件级运行时视图 |
+| 性能扫描工具 | 发现高开销渲染 | 性能观测 |
+| 源码定位工具 | 打开组件文件 | UI → 源码位置 |
+| **CauseScope** | 解释页面为什么呈现当前值或状态 | **UI → TSX → 判断 → 更新来源** |
 
 ## 可选数据适配器
 
-请在 React 首次渲染前安装适配器，让初始缓存和 Store 值也能保留来源。
+请在 React 首次渲染前安装适配器，使初始缓存和 Store 值也保留来源。
 
 ```ts
 if (import.meta.env.DEV) {
@@ -72,30 +102,31 @@ React Query 来源包含 query key、status、fetch status 和更新时间。Zus
 | 集成 | 支持范围 |
 | --- | --- |
 | React | 18、19 |
-| Vite | 5、6 |
-| TypeScript | 一等支持；仓库源码和测试全部使用 TS/TSX |
-| 包管理器 | 任意 npm 兼容客户端；仓库自身使用 pnpm |
+| Vite | 5、6、7、8 |
+| Node.js | Vite 5 可使用 18.18+；其他版本遵循所选 Vite 的 Node.js 要求 |
+| TypeScript | 一等支持；应用与工具代码使用 TS/TSX，不包含 JS/JSX 源文件 |
+| 包管理器 | 消费端可用任意 npm 兼容客户端；仓库自身使用 **pnpm Workspace + Turborepo** |
 
-[`examples/`](examples) 包含 React 18、React 19、React Query 和 Zustand 示例。React 19 Lab 覆盖多页面、多组件、多文件的 Playwright 端到端场景，另有独立的 React 18/Vite 5 冒烟用例端到端验证兼容性下限。
+CI 会把打包后的 npm 产物分别安装进隔离的 Vite 5.4、6.4、7.3、8.1 消费端，并执行真实 TSX 转换。[`examples/`](examples) 还覆盖 React 18/19、多页面、多组件、多文件、React Query 与 Zustand 浏览器场景。
 
 ## 隐私与边界
 
-CauseScope 本地运行，没有遥测和上传链路。网络与 Storage 追踪默认只在开发环境开启，也可以分别关闭。它只记录当前页面运行期间实际访问过的 Storage key，不会枚举浏览器存储。
+CauseScope 不需要账号，没有遥测、远程服务或上传链路。Network 与 Storage 追踪只在开发环境工作，并可分别关闭。它只记录当前页面运行期间真正访问过的 Storage key，不会枚举浏览器存储。
 
-Authorization、Cookie、API Key、Token、Password、Secret 等常见变体会在请求头、URL、对象、面板和导出结果中默认脱敏。记录量也有明确上限：默认 10,000 个 trace 节点、200 条时间线事件、单响应 1 MB、响应总量 20 MB。
+Authorization、Cookie、API Key、Token、Password、Secret 等常见变体会在请求头、URL、对象、面板和导出结果中脱敏。默认记录上限为 10,000 个 trace 节点、200 条时间线事件、单响应 1 MB、响应总量 20 MB。
 
-在敏感业务中使用前，请阅读完整的[隐私与威胁模型](docs/privacy.md)。
+在敏感业务中使用前，请阅读[隐私与威胁模型](https://stackloomdev.github.io/causescope/privacy)。
 
-## 开发
+## 开发 Monorepo
 
-这是一个 pnpm Workspace + Turborepo 项目。
+CauseScope 使用 pnpm Workspace + Turborepo。
 
 ```bash
 pnpm install
 pnpm check
 ```
 
-完整检查包含类型检查、单元测试、全部构建、生产包无残留扫描、独立 tarball 消费端验证和 Playwright 端到端测试。
+完整检查包含类型检查、单元测试、全部构建、生产产物无残留扫描、Vite 5–8 独立安装消费端，以及 Playwright 端到端测试。
 
 欢迎提交 Issue 和 Pull Request。参与前请先阅读 [CONTRIBUTING.md](CONTRIBUTING.md)、[SECURITY.md](SECURITY.md) 和 [CODE_OF_CONDUCT.md](CODE_OF_CONDUCT.md)。
 

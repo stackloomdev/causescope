@@ -1,6 +1,6 @@
 {
   "name": "causescope",
-  "version": "1.0.0-beta.1",
+  "version": "1.0.0-beta.2",
   "description": "Click any UI. Trace the cause. A local-first React provenance inspector for Vite development.",
   "keywords": [
     "react",
@@ -12,7 +12,7 @@
   ],
   "license": "MIT",
   "author": "stackloomdev <email@loupengju.cc>",
-  "homepage": "https://github.com/stackloomdev/causescope#readme",
+  "homepage": "https://stackloomdev.github.io/causescope/",
   "bugs": {
     "url": "https://github.com/stackloomdev/causescope/issues"
   },
@@ -77,10 +77,10 @@
     "@causescope/vite-plugin": "workspace:*",
     "@types/babel__core": "^7.20.5",
     "@types/babel__generator": "^7.27.0",
-    "vite": "^6.0.5"
+    "vite": "^8.1.5"
   },
   "peerDependencies": {
-    "vite": ">=5.0.0 <7.0.0"
+    "vite": ">=5.0.0 <9.0.0"
   },
   "engines": {
     "node": ">=18.18.0"

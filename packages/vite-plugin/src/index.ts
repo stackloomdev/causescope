@@ -143,7 +143,7 @@ export default function causeScope(userOptions: CauseScopeOptions = {}): Plugin 
         if (!result?.code) return null;
         return {
           code: result.code,
-          map: result.map ?? null,
+          map: result.map ? JSON.stringify(result.map) : null,
         };
       },
     },

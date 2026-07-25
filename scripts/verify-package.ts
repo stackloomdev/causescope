@@ -6,6 +6,7 @@ import { fileURLToPath } from "node:url";
 
 const workspaceRoot = resolve(fileURLToPath(new URL("..", import.meta.url)));
 const temporaryRoot = mkdtempSync(join(tmpdir(), "causescope-package-"));
+const supportedViteVersions = ["5.4.21", "6.4.3", "7.3.6", "8.1.5"] as const;
 
 function run(command: string, args: string[], cwd = workspaceRoot): string {
   const result = spawnSync(command, args, { cwd, encoding: "utf8", stdio: ["ignore", "pipe", "pipe"] });
@@ -23,6 +24,10 @@ function filesWithin(directory: string): string[] {
 }
 
 try {
+  // A packed release bundles the private workspace packages, whose dist files
+  // do not exist in a fresh checkout. Build them here so this verifier cannot
+  // pass only because another local command happened to leave artifacts behind.
+  run("pnpm", ["build:packages"]);
   const packDirectory = join(temporaryRoot, "pack");
   run("pnpm", ["--filter", "causescope", "pack", "--pack-destination", packDirectory]);
   const tarballName = readdirSync(packDirectory).find((file) => file.endsWith(".tgz"));
@@ -79,62 +84,110 @@ try {
     if (contents.includes("/Users/") || contents.includes("\\Users\\")) throw new Error(`${file} exposes an absolute local path`);
   }
 
-  const consumer = join(temporaryRoot, "consumer");
-  run("mkdir", ["-p", consumer]);
-  writeFileSync(join(consumer, "package.json"), JSON.stringify({ private: true, type: "module" }, null, 2));
-  writeFileSync(join(consumer, "tsconfig.json"), JSON.stringify({
-    compilerOptions: {
-      module: "NodeNext",
-      moduleResolution: "NodeNext",
-      noEmit: true,
-      skipLibCheck: false,
-      strict: true,
-      target: "ES2022",
-    },
-    include: ["index.ts"],
-  }, null, 2));
-  writeFileSync(join(consumer, "index.ts"), [
-    'import { getCauseScopeRuntime, type CauseScopeRuntime } from "causescope";',
-    'import { mountCauseScopeOverlay } from "causescope/runtime";',
-    'import causeScope, { type CauseScopeOptions } from "causescope/vite";',
-    'import { reactQueryAdapter } from "causescope/adapters/react-query";',
-    'import { zustandAdapter } from "causescope/adapters/zustand";',
-    'const options: CauseScopeOptions = { traceNetwork: false, traceStorage: false };',
-    'const plugin = causeScope(options);',
-    'const runtime: CauseScopeRuntime = getCauseScopeRuntime();',
-    'mountCauseScopeOverlay(runtime);',
-    'reactQueryAdapter({ queryClient: { getQueryCache: () => ({ getAll: () => [], subscribe: () => () => undefined }) } });',
-    'zustandAdapter({ stores: { demo: { getState: () => ({}), subscribe: () => () => undefined } } });',
-    'void plugin;',
-  ].join("\n"));
-  run("pnpm", [
-    "add",
-    "--prefer-offline",
-    "--ignore-scripts",
-    "--registry=https://registry.npmjs.org",
-    tarball,
-    "typescript@^5.7.2",
-    "vite@^6.0.5",
-  ], consumer);
-  run("pnpm", ["exec", "tsc", "--project", "tsconfig.json"], consumer);
-  run("node", [
-    "--input-type=module",
-    "--eval",
-    [
-      'const api = await import("causescope");',
-      'const vite = await import("causescope/vite");',
-      'const runtime = await import("causescope/runtime");',
-      'const query = await import("causescope/adapters/react-query");',
-      'const zustand = await import("causescope/adapters/zustand");',
-      'if (typeof api.getCauseScopeRuntime !== "function") throw new Error("main export missing");',
-      'if (typeof vite.default !== "function") throw new Error("Vite export missing");',
-      'if (typeof runtime.mountCauseScopeOverlay !== "function") throw new Error("runtime export missing");',
-      'if (typeof query.reactQueryAdapter !== "function") throw new Error("React Query export missing");',
-      'if (typeof zustand.zustandAdapter !== "function") throw new Error("Zustand export missing");',
-    ].join("\n"),
-  ], consumer);
+  const requestedViteVersion = process.env.CAUSESCOPE_VITE_VERSION;
+  const viteVersions = requestedViteVersion ? [requestedViteVersion] : [...supportedViteVersions];
 
-  console.log(`Verified installable package ${tarballName} in a clean consumer.`);
+  for (const viteVersion of viteVersions) {
+    if (!supportedViteVersions.includes(viteVersion as (typeof supportedViteVersions)[number])) {
+      throw new Error(`Unsupported CAUSESCOPE_VITE_VERSION: ${viteVersion}`);
+    }
+
+    const consumer = join(temporaryRoot, `consumer-vite-${viteVersion}`);
+    const sourceDirectory = join(consumer, "src");
+    run("mkdir", ["-p", sourceDirectory]);
+    writeFileSync(join(consumer, "package.json"), JSON.stringify({ private: true, type: "module" }, null, 2));
+    writeFileSync(join(consumer, "tsconfig.json"), JSON.stringify({
+      compilerOptions: {
+        lib: ["ESNext", "DOM"],
+        module: "NodeNext",
+        moduleResolution: "NodeNext",
+        noEmit: true,
+        skipLibCheck: false,
+        strict: true,
+        target: "ESNext",
+        types: ["node"],
+      },
+      include: ["index.ts", "verify-vite.ts"],
+    }, null, 2));
+    writeFileSync(join(consumer, "index.ts"), [
+      'import { getCauseScopeRuntime, type CauseScopeRuntime } from "causescope";',
+      'import { mountCauseScopeOverlay } from "causescope/runtime";',
+      'import causeScope, { type CauseScopeOptions } from "causescope/vite";',
+      'import { reactQueryAdapter } from "causescope/adapters/react-query";',
+      'import { zustandAdapter } from "causescope/adapters/zustand";',
+      'const options: CauseScopeOptions = { traceNetwork: false, traceStorage: false };',
+      'const plugin = causeScope(options);',
+      'const runtime: CauseScopeRuntime = getCauseScopeRuntime();',
+      'mountCauseScopeOverlay(runtime);',
+      'reactQueryAdapter({ queryClient: { getQueryCache: () => ({ getAll: () => [], subscribe: () => () => undefined }) } });',
+      'zustandAdapter({ stores: { demo: { getState: () => ({}), subscribe: () => () => undefined } } });',
+      'void plugin;',
+    ].join("\n"));
+    writeFileSync(join(sourceDirectory, "App.tsx"), [
+      "const label = 'Trace me';",
+      "export function App() {",
+      "  return <button disabled>{label}</button>;",
+      "}",
+    ].join("\n"));
+    writeFileSync(join(consumer, "verify-vite.ts"), [
+      'import { fileURLToPath } from "node:url";',
+      'import { createServer } from "vite";',
+      'import causeScope from "causescope/vite";',
+      "const server = await createServer({",
+      "  appType: 'custom',",
+      "  logLevel: 'silent',",
+      "  plugins: [causeScope({ openInEditor: false })],",
+      "  root: fileURLToPath(new URL('.', import.meta.url)),",
+      "  server: { middlewareMode: true },",
+      "});",
+      "try {",
+      "  const result = await server.transformRequest('/src/App.tsx');",
+      "  if (!result?.code.includes('data-causescope-node')) {",
+      "    throw new Error('CauseScope did not instrument TSX through Vite');",
+      "  }",
+      "  const sourceMap = result.map as { mappings?: string; sources?: string[]; sourcesContent?: Array<string | null> } | null;",
+      "  const appSourceIndex = sourceMap?.sources?.findIndex((source) => source === 'App.tsx' || source.endsWith('/src/App.tsx')) ?? -1;",
+      "  if (!sourceMap?.mappings || appSourceIndex < 0) {",
+      "    throw new Error(`CauseScope did not preserve an App.tsx source map through Vite: ${JSON.stringify(sourceMap)}`);",
+      "  }",
+      "  if (!sourceMap.sourcesContent?.[appSourceIndex]?.includes('<button disabled>')) {",
+      "    throw new Error('CauseScope source map does not contain the original App.tsx source');",
+      "  }",
+      "} finally {",
+      "  await server.close();",
+      "}",
+    ].join("\n"));
+    run("pnpm", [
+      "add",
+      "--prefer-offline",
+      "--ignore-scripts",
+      "--registry=https://registry.npmjs.org",
+      tarball,
+      "@types/node@^22.10.2",
+      "react@19.2.8",
+      "typescript@^5.7.2",
+      `vite@${viteVersion}`,
+    ], consumer);
+    run("pnpm", ["exec", "tsc", "--project", "tsconfig.json"], consumer);
+    run("node", ["--experimental-strip-types", "verify-vite.ts"], consumer);
+    run("node", [
+      "--input-type=module",
+      "--eval",
+      [
+        'const api = await import("causescope");',
+        'const vite = await import("causescope/vite");',
+        'const runtime = await import("causescope/runtime");',
+        'const query = await import("causescope/adapters/react-query");',
+        'const zustand = await import("causescope/adapters/zustand");',
+        'if (typeof api.getCauseScopeRuntime !== "function") throw new Error("main export missing");',
+        'if (typeof vite.default !== "function") throw new Error("Vite export missing");',
+        'if (typeof runtime.mountCauseScopeOverlay !== "function") throw new Error("runtime export missing");',
+        'if (typeof query.reactQueryAdapter !== "function") throw new Error("React Query export missing");',
+        'if (typeof zustand.zustandAdapter !== "function") throw new Error("Zustand export missing");',
+      ].join("\n"),
+    ], consumer);
+    console.log(`Verified ${tarballName} with Vite ${viteVersion}.`);
+  }
 } finally {
   rmSync(temporaryRoot, { recursive: true, force: true });
 }
