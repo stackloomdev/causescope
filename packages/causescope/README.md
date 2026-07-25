@@ -24,6 +24,6 @@ CauseScope supports React 18–19 and Vite 5–8. It applies only to the develop
 
 Optional adapters are available from `causescope/adapters/react-query` and `causescope/adapters/zustand`.
 
-[Try the live lab](https://stackblitz.com/fork/github/stackloomdev/causescope?startScript=dev), read the [documentation](https://stackloomdev.github.io/causescope/), or explore the [repository](https://github.com/stackloomdev/causescope).
+[Try the live lab](https://stackblitz.com/fork/github/stackloomdev/causescope?startScript=dev%3Astackblitz), read the [documentation](https://stackloomdev.github.io/causescope/), or explore the [repository](https://github.com/stackloomdev/causescope).
 
 MIT © stackloomdev
