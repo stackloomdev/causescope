@@ -3,9 +3,11 @@
 CauseScope exports a UTF-8 JSON document that contains the evidence for one selected element. The export is local: CauseScope creates a browser download and does not send the document to a service.
 
 ```ts
-import type { TraceExport } from "causescope";
+import type { TraceExportVersion } from "causescope";
 
-export function supportsTrace(trace: unknown): trace is TraceExport {
+export function hasSupportedTraceVersion(
+  trace: unknown,
+): trace is { version: TraceExportVersion } {
   return typeof trace === "object"
     && trace !== null
     && "version" in trace
@@ -13,7 +15,9 @@ export function supportsTrace(trace: unknown): trace is TraceExport {
 }
 ```
 
-[Download the synthetic v1 example](/examples/trace-v1.json). The example is checked against the published TypeScript type by `pnpm verify:trace-contract`; it contains no application or credential data.
+This guard establishes only the version boundary. Validate the required fields below before treating untrusted JSON as a complete `TraceExport`.
+
+[Download the synthetic v1 example](/examples/trace-v1.json). The example is produced through the real runtime exporter, compared with the documented JSON, and type-checked against the packed public declaration; it contains no application or credential data.
 
 ## Version boundary
 
@@ -56,6 +60,6 @@ Built-in matching covers common authorization, cookie, API-key, token, password,
 
 ## Recording bounds
 
-Exports reflect the configured in-memory recording limits. Defaults are 10,000 trace nodes, 200 timeline events, 1 MB per response, and 20 MB of response data in total. Serialized values stop at object depth 5 and 100 array entries. A truncated response or structured value is marked in its value record; missing evidence is not reconstructed during export.
+Exports reflect the configured in-memory recording limits. Defaults are 10,000 trace nodes, 200 timeline events, 1 MB per response, and 20 MB of response data in total. Serialized values stop at object depth 5, 100 array entries, and 100 enumerable object properties. A truncated response or structured value is marked in its value record; missing evidence is not reconstructed during export.
 
 See [Configuration](/configuration) for runtime options and [Privacy](/privacy) for the complete observation and threat-model boundary.

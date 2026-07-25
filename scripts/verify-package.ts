@@ -10,6 +10,7 @@ const temporaryRoot = realpathSync.native(mkdtempSync(join(temporaryBase, "cause
 const supportedViteVersions = ["5.4.21", "6.4.3", "7.3.6", "8.1.5"] as const;
 const pnpmCommand = process.platform === "win32" ? "pnpm.cmd" : "pnpm";
 const pnpmEntry = process.env.npm_execpath;
+const documentedTraceExample = readFileSync(join(workspaceRoot, "docs/public/examples/trace-v1.json"), "utf8").trim();
 
 function run(command: string, args: string[], cwd = workspaceRoot): string {
   const result = spawnSync(command, args, { cwd, encoding: "utf8", stdio: ["ignore", "pipe", "pipe"] });
@@ -119,7 +120,7 @@ try {
         target: "ESNext",
         types: ["node"],
       },
-      include: ["index.ts", "verify-vite.ts"],
+      include: ["index.ts", "verify-trace.ts", "verify-vite.ts"],
     }, null, 2));
     writeFileSync(join(consumer, "index.ts"), [
       'import { getCauseScopeRuntime, type CauseScopeRuntime, type TraceExport, type TraceExportVersion } from "causescope";',
@@ -144,6 +145,11 @@ try {
       "export function App() {",
       "  return <button disabled>{label}</button>;",
       "}",
+    ].join("\n"));
+    writeFileSync(join(consumer, "verify-trace.ts"), [
+      'import type { TraceExport } from "causescope";',
+      `const trace: TraceExport = ${documentedTraceExample};`,
+      "void trace;",
     ].join("\n"));
     writeFileSync(join(consumer, "verify-vite.ts"), [
       'import { fileURLToPath } from "node:url";',

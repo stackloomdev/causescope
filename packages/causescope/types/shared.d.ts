@@ -257,6 +257,41 @@ export interface StoreUpdate {
 
 export type TraceExportVersion = 1;
 
+export interface TraceExportConditionEvaluation extends Omit<ConditionEvaluation, "value" | "children"> {
+  value?: SerializedValue;
+  children?: TraceExportConditionEvaluation[];
+}
+
+export interface TraceExportValueOrigin extends Omit<ValueOrigin, "metadata"> {
+  metadata?: Record<string, SerializedValue>;
+}
+
+export interface TraceExportExpression extends Omit<ExpressionResult, "result" | "inputs" | "inputOrigins" | "conditionEvaluation"> {
+  result: SerializedValue;
+  inputs: Record<string, SerializedValue>;
+  inputOrigins: Record<string, TraceExportValueOrigin[]>;
+  conditionEvaluation?: TraceExportConditionEvaluation;
+}
+
+export interface TraceExportReducerDispatch extends Omit<ReducerDispatchTrace, "action"> {
+  action: SerializedValue;
+}
+
+export interface TraceExportStateChange extends Omit<StateUpdate, "previous" | "next" | "action" | "reducerDispatches"> {
+  previous: SerializedValue;
+  next: SerializedValue;
+  action?: SerializedValue;
+  reducerDispatches?: TraceExportReducerDispatch[];
+}
+
+export interface TraceExportProp extends Omit<PropSnapshot, "value"> {
+  value: SerializedValue;
+}
+
+export interface TraceExportRuntimeEvent extends Omit<RuntimeEvent, "metadata"> {
+  metadata?: Record<string, SerializedValue>;
+}
+
 export interface TraceExport {
   version: TraceExportVersion;
   generatedAt: string;
@@ -265,14 +300,14 @@ export interface TraceExport {
   component?: {
     name?: string;
     parents: string[];
-    props: PropSnapshot[];
+    props: TraceExportProp[];
   };
-  expressions: ExpressionResult[];
-  stateChanges: StateUpdate[];
+  expressions: TraceExportExpression[];
+  stateChanges: TraceExportStateChange[];
   networkRequests: NetworkTrace[];
   storageAccesses: StorageTrace[];
   storeUpdates: StoreUpdate[];
-  timeline: RuntimeEvent[];
+  timeline: TraceExportRuntimeEvent[];
 }
 
 export interface InspectionResult {
