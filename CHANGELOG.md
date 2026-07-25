@@ -6,7 +6,7 @@ All notable changes to CauseScope will be documented here. The format follows [K
 
 ### Fixed
 
-- Made the StackBlitz live lab WebContainer-safe by replacing its Turbo startup step with an ordered pnpm workspace build.
+- Made every StackBlitz live-lab entry WebContainer-safe by replacing its Turbo startup step with an ordered pnpm workspace build.
 
 ## [1.0.0-beta.2] - 2026-07-25
 
