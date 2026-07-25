@@ -6,7 +6,9 @@ CauseScope instruments React TSX while Vite serves your development application.
 
 - Node.js 18.18 or newer
 - React 18 or 19
-- Vite 5 or 6
+- Vite 5, 6, 7, or 8
+
+Vite 8 requires Node.js 20.19+ or 22.12+. CauseScope itself keeps a Node.js 18.18 compatibility floor for projects that remain on Vite 5.
 
 ## Install
 

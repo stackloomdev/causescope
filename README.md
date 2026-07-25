@@ -1,32 +1,39 @@
 <div align="center">
 
+<img src="docs/public/mark.svg" width="72" alt="CauseScope logo" />
+
 # CauseScope
 
 **Click any UI. Trace the cause.**
 
-A local-first provenance inspector for React and Vite. Select an element and follow the exact TSX, expression, state, props, store, and network data that produced it.
+The local-first evidence inspector for React. Select an ordinary page element and follow it to the exact TSX, live decision, state transition, prop, store, or request that produced it.
 
-[Getting started](docs/getting-started.md) · [Configuration](docs/configuration.md) · [Adapters](docs/adapters.md) · [Privacy](docs/privacy.md) · [中文](README.zh-CN.md)
+[![npm](https://img.shields.io/npm/v/causescope?label=npm&color=ff385c)](https://www.npmjs.com/package/causescope)
+[![CI](https://github.com/stackloomdev/causescope/actions/workflows/ci.yml/badge.svg)](https://github.com/stackloomdev/causescope/actions/workflows/ci.yml)
+[![license](https://img.shields.io/github/license/stackloomdev/causescope?color=737077)](LICENSE)
+
+[Try the live lab](https://stackblitz.com/fork/github/stackloomdev/causescope?startScript=dev) · [Documentation](https://stackloomdev.github.io/causescope/) · [60-second setup](https://stackloomdev.github.io/causescope/getting-started) · [中文](README.zh-CN.md)
 
 </div>
 
-![CauseScope demo tracing an edited React element from UI to source and state](docs/assets/causescope-demo.gif)
+![CauseScope tracing a React element from rendered UI to source and live state](docs/assets/causescope-demo.gif)
 
-## Why CauseScope?
+## The answer behind the symptom
 
-React DevTools can tell you what a component contains. CauseScope focuses on the next question: **why did this exact UI appear?**
+“Why is this button disabled?” is one useful scenario, not the product model. CauseScope can select buttons, text, inputs, lists, and other DOM elements. It reports the evidence that actually exists for that element:
 
-- Jump from a rendered element to its precise TSX file, line, and column.
-- See the JSX expression, live operands, result, and deciding conditional branch.
-- Follow real `useState` and `useReducer` transitions without inventing history.
-- Trace one-level props back to the parent JSX callsite.
-- Link values to Fetch, XHR, React Query, Zustand, LocalStorage, or SessionStorage.
-- Export a second-pass-redacted JSON or Markdown trace for a bug report.
-- Keep the entire inspector out of production builds.
+```text
+<button disabled={!canRefund}>Refund order</button>
+                     │
+                     ├─ canRefund → false
+                     ├─ order.status === "paid" → false
+                     ├─ order.status = "pending"
+                     └─ GET /api/orders/4821 · 200
+```
 
-CauseScope uses a Preact overlay inside an isolated Shadow DOM. It does not require an account, API key, browser extension, or remote service.
+For static text or an element without a dynamic decision, CauseScope simply shows the exact source code and component location. Missing or ambiguous evidence is marked unavailable instead of being invented.
 
-## Quick start
+## Install in one minute
 
 ```bash
 pnpm add -D causescope@beta
@@ -43,9 +50,32 @@ export default defineConfig({
 });
 ```
 
-Start the Vite development server, click **Inspect**, then choose any element. You can also hold <kbd>Option</kbd>/<kbd>Alt</kbd> and click an element directly.
+Start the Vite development server, click **Inspect**, and select an element. Hold <kbd>Option</kbd>/<kbd>Alt</kbd> while clicking for a shortcut; while the drawer is open, select another page element directly.
 
-The plugin runs only for `vite serve` in development mode. Production builds contain no CauseScope instrumentation, overlay, endpoint, or debug attributes.
+CauseScope only runs for `vite serve` in development. Production builds contain no instrumentation, overlay, editor endpoint, or debug attributes.
+
+## What the inspector reports
+
+| View | Evidence |
+| --- | --- |
+| Why | Source snippet, expression result, operands, condition tree, hidden branch, data origins |
+| Values | Current props and hook state for the selected component instance |
+| State | Initial value, latest real setter or reducer transition, source, triggering event |
+| Network | Fetch/XHR metadata, response size, and correlated field paths |
+| Timeline | DOM event → handler → state/store update → render → expression change |
+
+It also provides exact file, line, and column coordinates plus an editor-agnostic **Open in editor** action.
+
+## How it differs
+
+CauseScope complements existing developer tools instead of replacing them.
+
+| Tool category | Best at | Evidence depth |
+| --- | --- | --- |
+| React DevTools | Component tree, props, hooks | Component-level runtime view |
+| Performance scanners | Finding expensive renders | Performance observations |
+| Source locators | Opening a component file | UI → source location |
+| **CauseScope** | Explaining why rendered UI has its current value or state | **UI → TSX → decision → update origin** |
 
 ## Optional data adapters
 
@@ -73,63 +103,39 @@ if (import.meta.env.DEV) {
 
 React Query provenance includes the query key, status, fetch status, and update time. Zustand stores are explicit by design; CauseScope never searches for unrelated stores.
 
-## What the inspector reports
-
-| View | Evidence |
-| --- | --- |
-| Why | Source snippet, expression result, operands, condition tree, hidden branch, data origins |
-| Values | Current props and hook state for the selected component instance |
-| State | Initial value, latest real setter or reducer transition, source, triggering event |
-| Network | Recorded Fetch/XHR metadata and bounded, redacted response data |
-| Timeline | DOM event → handler → state/store update → render → expression change |
-
-Plain text and other nodes without a dynamic expression still show their exact source code. CauseScope reports missing or ambiguous evidence as unavailable instead of guessing.
-
 ## Compatibility
 
 | Integration | Supported |
 | --- | --- |
 | React | 18 and 19 |
-| Vite | 5 and 6 |
-| TypeScript | First-class; all repository source and tests use TS/TSX |
-| Package managers | Any npm-compatible client; this repository uses pnpm |
+| Vite | 5, 6, 7, and 8 |
+| Node.js | 18.18+ for Vite 5; follow the selected Vite version’s Node.js requirement |
+| TypeScript | First-class; authored application and tooling code uses TS/TSX, with no JS/JSX source files |
+| Package managers | Any npm-compatible client; this repository uses **pnpm Workspace + Turborepo** |
 
-Runnable examples live in [`examples/`](examples): React 18, React 19, React Query, and Zustand. The React 19 lab contains multi-page, multi-component, and multi-file Playwright scenarios, and a separate React 18/Vite 5 smoke test verifies the compatibility floor end to end.
+CI installs the packed npm artifact into isolated Vite 5.4, 6.4, 7.3, and 8.1 consumers and performs a real TSX transform. [`examples/`](examples) adds React 18/19, multi-page, multi-component, multi-file, React Query, and Zustand browser scenarios.
 
 ## Privacy and limits
 
-CauseScope is local-first and has no telemetry or upload path. Network and storage tracing are enabled by default in development and can be disabled independently. It records only storage keys accessed during the current page run; it does not enumerate browser storage.
+CauseScope has no account, telemetry, remote service, or upload path. Network and storage tracing are development-only and independently configurable. It records only storage keys accessed during the current page run; it does not enumerate browser storage.
 
-Authorization, cookie, API-key, token, password, and secret variants are redacted by default across headers, URLs, objects, the inspector, and exported traces. Recording is bounded to 10,000 trace nodes, 200 timeline events, 1 MB per response, and 20 MB total response data unless configured otherwise.
+Authorization, cookie, API-key, token, password, and secret variants are redacted across headers, URLs, objects, the inspector, and exported traces. Recording is bounded to 10,000 trace nodes, 200 timeline events, 1 MB per response, and 20 MB total response data unless configured otherwise.
 
-Read the full [privacy and threat model](docs/privacy.md) before using CauseScope with sensitive applications.
+Read the [privacy and threat model](https://stackloomdev.github.io/causescope/privacy) before using CauseScope with sensitive applications.
 
-## Repository
+## Develop the monorepo
 
-CauseScope is a pnpm Workspace + Turborepo monorepo.
-
-```text
-packages/
-  causescope/            public, self-contained npm package
-  babel-plugin/          TSX instrumentation and stable source IDs
-  vite-plugin/           dev-only transform and editor endpoint
-  runtime-core/          provenance, timeline, redaction, and export
-  runtime-react/         isolated React 18/19 Fiber adapter
-  overlay/               Preact + Shadow DOM inspector
-  adapter-react-query/   Query Cache provenance
-  adapter-zustand/       explicit store provenance
-  shared/                runtime contracts
-```
+CauseScope uses pnpm Workspace + Turborepo.
 
 ```bash
 pnpm install
 pnpm check
 ```
 
-The complete gate runs type checking, unit tests, all builds, the production-absence scan, an isolated tarball-consumer test, and Playwright end-to-end coverage.
+The full gate runs type checking, unit tests, every build, the production-absence scan, packed-package Vite 5–8 consumers, and Playwright end-to-end coverage.
 
 ## Contributing
 
-Issues and pull requests are welcome. Please read [CONTRIBUTING.md](CONTRIBUTING.md), [SECURITY.md](SECURITY.md), and the [Code of Conduct](CODE_OF_CONDUCT.md) first.
+Issues and pull requests are welcome. Start with [CONTRIBUTING.md](CONTRIBUTING.md), [SECURITY.md](SECURITY.md), and the [Code of Conduct](CODE_OF_CONDUCT.md).
 
 Released under the [MIT License](LICENSE).

@@ -2,7 +2,7 @@
 
 **Click any UI. Trace the cause.**
 
-CauseScope is a local-first provenance inspector for React and Vite. It connects a selected DOM element to its exact TSX, live expression values, deciding conditions, state transitions, props, network requests, React Query data, Zustand stores, and browser storage.
+CauseScope is a local-first evidence inspector for React and Vite. It connects a selected DOM element to its exact TSX, live expression values, deciding conditions, state transitions, props, network requests, React Query data, Zustand stores, and browser storage.
 
 ```bash
 pnpm add -D causescope@beta
@@ -18,10 +18,12 @@ export default defineConfig({
 });
 ```
 
-Start the Vite development server, click **Inspect**, and select an element. CauseScope applies only to the development server and is absent from production builds.
+Start the Vite development server, click **Inspect**, and select an element. Buttons, text, inputs, lists, and other ordinary DOM elements are supported; when no dynamic decision exists, CauseScope shows the exact source instead of inventing a cause.
+
+CauseScope supports React 18–19 and Vite 5–8. It applies only to the development server and is absent from production builds.
 
 Optional adapters are available from `causescope/adapters/react-query` and `causescope/adapters/zustand`.
 
-Documentation, examples, privacy details, and contribution guidance live in the [CauseScope repository](https://github.com/stackloomdev/causescope).
+[Try the live lab](https://stackblitz.com/fork/github/stackloomdev/causescope?startScript=dev), read the [documentation](https://stackloomdev.github.io/causescope/), or explore the [repository](https://github.com/stackloomdev/causescope).
 
 MIT © stackloomdev

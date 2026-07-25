@@ -11,6 +11,6 @@
     "lint": "tsc --noEmit"
   },
   "devDependencies": {
-    "vitepress": "^1.6.4"
+    "vitepress": "2.0.0-alpha.18"
   }
 }

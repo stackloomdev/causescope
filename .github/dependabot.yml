@@ -12,8 +12,10 @@ updates:
           - minor
           - patch
     ignore:
-      # Major upgrades need a dedicated compatibility PR because this monorepo
-      # intentionally tests multiple React and Vite generations.
+      # Scheduled major version updates need a dedicated compatibility PR because
+      # this monorepo intentionally tests multiple React and Vite generations.
+      # GitHub can still open a cross-major security PR; triage those against the
+      # compatibility fixtures instead of merging them automatically.
       - dependency-name: "*"
         update-types:
           - version-update:semver-major

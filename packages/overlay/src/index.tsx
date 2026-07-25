@@ -707,7 +707,7 @@ function Drawer({
           <div class="cs-summary-row"><span class="cs-summary-label">Source</span><code class="cs-summary-value">{source ? `${source.file}:${source.line}` : "Unavailable"}</code></div>
         </div>
         <div class="cs-export-actions">
-          <button class="cs-open-editor" type="button" disabled={!source} onClick={onOpenEditor}>Open in VS Code</button>
+          <button class="cs-open-editor" type="button" disabled={!source} onClick={onOpenEditor}>Open in editor</button>
           <button class="cs-export-button" type="button" onClick={onCopyMarkdown}>Copy Markdown</button>
           <button class="cs-export-button" type="button" onClick={onExportJson}>Export JSON</button>
         </div>
@@ -910,7 +910,7 @@ function OverlayApp({ runtime, host }: { runtime: CauseScopeRuntime; host: HTMLE
         headers: { "x-causescope-request": "open-editor" },
       });
       if (!response.ok) throw new Error("Open request failed");
-      setNotice(`VS Code open request sent for ${source.file}:${source.line}`);
+      setNotice(`Editor open request sent for ${source.file}:${source.line}`);
     } catch {
       setNotice("Could not open the editor. Check the Vite terminal for details.");
     }

@@ -1,12 +1,21 @@
 import { defineConfig } from "vitepress";
 
+const base = process.env.CAUSESCOPE_DOCS_BASE ?? "/";
+const liveDemo = "https://stackblitz.com/fork/github/stackloomdev/causescope?startScript=dev";
+
 export default defineConfig({
+  base,
   title: "CauseScope",
-  description: "Click any UI. Trace the cause.",
+  description: "The evidence chain behind any React UI.",
   cleanUrls: true,
   lastUpdated: true,
   head: [
-    ["meta", { name: "theme-color", content: "#111315" }],
+    ["meta", { name: "theme-color", content: "#09090b" }],
+    ["meta", { property: "og:type", content: "website" }],
+    ["meta", { property: "og:title", content: "CauseScope — Click any UI. Trace the cause." }],
+    ["meta", { property: "og:description", content: "Trace rendered React UI back to the exact TSX, branch, state, props, store, and network evidence." }],
+    ["meta", { property: "og:image", content: "https://stackloomdev.github.io/causescope/og.png" }],
+    ["meta", { name: "twitter:card", content: "summary_large_image" }],
   ],
   themeConfig: {
     logo: {
@@ -16,7 +25,7 @@ export default defineConfig({
     nav: [
       { text: "Guide", link: "/getting-started" },
       { text: "Configuration", link: "/configuration" },
-      { text: "Examples", link: "https://github.com/stackloomdev/causescope/tree/main/examples" },
+      { text: "Live demo", link: liveDemo },
       { text: "中文", link: "https://github.com/stackloomdev/causescope/blob/main/README.zh-CN.md" },
     ],
     sidebar: [
@@ -42,7 +51,7 @@ export default defineConfig({
     ],
     search: { provider: "local" },
     footer: {
-      message: "Local-first React provenance inspection.",
+      message: "Built for local evidence, not another dashboard.",
       copyright: "MIT © 2026 stackloomdev",
     },
   },

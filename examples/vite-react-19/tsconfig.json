@@ -2,12 +2,13 @@
   "extends": "../../tsconfig.base.json",
   "compilerOptions": {
     "jsx": "react-jsx",
-    "types": ["vite/client"]
+    "types": ["vite/client", "node"]
   },
   "include": [
     "src/**/*.ts",
     "src/**/*.tsx",
     "e2e/**/*.ts",
+    "scripts/**/*.ts",
     "vite.config.ts",
     "vitest.config.ts",
     "playwright.config.ts"

@@ -4,6 +4,25 @@ All notable changes to CauseScope will be documented here. The format follows [K
 
 ## [Unreleased]
 
+## [1.0.0-beta.2] - 2026-07-25
+
+### Added
+
+- Hosted documentation, a StackBlitz live lab, and a pinned Vite 5.4/6.4/7.3/8.1 compatibility matrix.
+
+### Changed
+
+- Expanded the public Vite peer range to include Vite 7 and 8.
+- Made the source-opening action editor-agnostic.
+
+### Security
+
+- Upgraded repository test, example, and documentation tooling to patched Vitest and Vite releases while retaining Vite 5 coverage in the isolated compatibility matrix.
+
+## [1.0.0-beta.1] - 2026-07-24
+
+First public beta.
+
 ### Added
 
 - Public open-source repository documentation, security policy, contribution guide, issue templates, and CI release gates.
@@ -20,7 +39,3 @@ All notable changes to CauseScope will be documented here. The format follows [K
 - React Query provenance now supports primitive query data and refreshes metadata when object references are reused.
 - Sensitive-key redaction recognizes camelCase, snake_case, and kebab-case variants.
 - Vite SSR transforms and direct server imports no longer mount browser instrumentation.
-
-## [1.0.0-beta.1] - Unreleased
-
-First public beta.
