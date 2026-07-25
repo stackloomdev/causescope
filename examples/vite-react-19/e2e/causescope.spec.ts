@@ -12,6 +12,14 @@ async function closeInspector(page: Page): Promise<void> {
   await inspector(page).getByRole("button", { name: "Close" }).click();
 }
 
+async function setHmrFixture(page: Page, mode: "baseline" | "updated"): Promise<void> {
+  const result = await page.evaluate(async (nextMode) => {
+    const response = await fetch(`/__fixtures/hmr?mode=${nextMode}`, { method: "POST" });
+    return { body: await response.text(), ok: response.ok };
+  }, mode);
+  expect(result.ok, result.body).toBe(true);
+}
+
 test("keeps state and values isolated across repeated order rows", async ({ page }) => {
   await page.goto("/orders");
   await page.getByRole("button", { name: "Priority only" }).click();
@@ -173,4 +181,80 @@ test("links a native input event through the JSX handler to the state update", a
 
   await inspector(page).getByRole("tab", { name: "Timeline" }).click();
   await expect(inspector(page)).toContainText("input input → updateDraft");
+});
+
+test("selects portal content and renders real CSS Module and Tailwind output", async ({ page }) => {
+  await page.goto("/stability");
+
+  const tailwindBadge = page.getByTestId("tailwind-badge");
+  await expect(tailwindBadge).toHaveCSS("padding-left", "12px");
+  await expect(tailwindBadge).toHaveCSS("font-weight", "600");
+  await expect(page.getByTestId("css-module-card")).toHaveCSS("isolation", "isolate");
+
+  await page.getByRole("button", { name: "Open portal fixture" }).click();
+  const dialog = page.getByRole("dialog", { name: "Portal evidence outside the app root" });
+  await expect(dialog).toBeVisible();
+  expect(await dialog.evaluate((element) => document.querySelector("#root")?.contains(element) ?? true)).toBe(false);
+
+  await beginInspect(page);
+  await page.getByRole("heading", { name: "Portal evidence outside the app root" }).click();
+  await expect(inspector(page)).toContainText("src/components/PortalPreview.tsx:19");
+  await expect(inspector(page)).toContainText("PortalPreview");
+  await expect(inspector(page).getByRole("tab")).toHaveCount(0);
+});
+
+test("keeps source ownership through Suspense retries and Error Boundary recovery", async ({ page }) => {
+  await page.goto("/stability");
+  await page.getByRole("button", { name: "Start suspense report" }).click();
+  await expect(page.getByText("Suspense report loading", { exact: true })).toBeVisible();
+
+  await beginInspect(page);
+  await page.getByText("Suspense report loading", { exact: true }).click();
+  await expect(inspector(page)).toContainText("src/pages/StabilityPage.tsx:62");
+
+  await closeInspector(page);
+  await page.getByRole("button", { name: "Resolve suspense report" }).click();
+  await expect(page.getByRole("heading", { name: "Suspense report resolved" })).toBeVisible();
+  await beginInspect(page);
+  await page.getByRole("heading", { name: "Suspense report resolved" }).click();
+  await expect(inspector(page)).toContainText("src/components/SuspenseReport.tsx:32");
+  await expect(inspector(page)).toContainText("SuspenseReport");
+
+  await closeInspector(page);
+  await page.getByRole("button", { name: "Crash boundary child" }).click();
+  await expect(page.getByRole("heading", { name: "Component failure contained" })).toBeVisible();
+  await beginInspect(page);
+  await page.getByRole("heading", { name: "Component failure contained" }).click();
+  await expect(inspector(page)).toContainText("src/components/StabilityErrorBoundary.tsx:29");
+  await expect(inspector(page)).toContainText("StabilityErrorBoundary");
+
+  await closeInspector(page);
+  await page.getByRole("button", { name: "Reset failed panel" }).click();
+  await expect(page.getByRole("heading", { name: "Boundary child healthy" })).toBeVisible();
+});
+
+test("preserves hook state and source evidence across Vite Fast Refresh", async ({ page }) => {
+  await page.goto("/stability");
+  await expect(page.getByText("HMR baseline", { exact: true })).toBeVisible();
+  await page.getByRole("button", { name: "Increment refresh-safe count" }).click();
+  await expect(page.getByRole("heading", { name: "Fast Refresh state: 1" })).toBeVisible();
+
+  try {
+    await setHmrFixture(page, "updated");
+    await expect(page.getByText("HMR updated", { exact: true })).toBeVisible();
+    await expect(page.getByRole("heading", { name: "Fast Refresh state: 1" })).toBeVisible();
+
+    await beginInspect(page);
+    await page.getByText("HMR updated", { exact: true }).click();
+    await expect(inspector(page)).toContainText("src/components/HmrStatus.tsx:11");
+    await expect(inspector(page)).toContainText("HmrStatus");
+    await inspector(page).getByRole("tab", { name: "State" }).click();
+    await expect(inspector(page)).toContainText("refreshCount");
+    await expect(inspector(page)).toContainText("Current");
+    await expect(inspector(page)).toContainText("1");
+    await expect(inspector(page)).toContainText('click · button "Increment refresh-safe count"');
+  } finally {
+    await setHmrFixture(page, "baseline");
+    await expect(page.getByText("HMR baseline", { exact: true })).toBeVisible();
+  }
 });

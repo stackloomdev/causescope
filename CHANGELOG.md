@@ -7,6 +7,7 @@ All notable changes to CauseScope will be documented here. The format follows [K
 ### Added
 
 - Added React SWC browser coverage plus Node 18 and Windows package-verification lanes.
+- Added browser fixtures for Portals, Suspense retries, Error Boundary recovery, Vite Fast Refresh, CSS Modules, and Tailwind CSS.
 
 ### Fixed
 

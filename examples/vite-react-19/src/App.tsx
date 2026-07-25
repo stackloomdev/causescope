@@ -4,6 +4,7 @@ import { AccountPage } from "./pages/AccountPage";
 import { DataOriginsPage } from "./pages/DataOriginsPage";
 import { DiagnosticsPage } from "./pages/DiagnosticsPage";
 import { OrdersPage } from "./pages/OrdersPage";
+import { StabilityPage } from "./pages/StabilityPage";
 
 const navigation = [
   { href: "/", label: "Product editor" },
@@ -11,6 +12,7 @@ const navigation = [
   { href: "/account", label: "Account" },
   { href: "/origins", label: "Data origins" },
   { href: "/diagnostics", label: "Diagnostics" },
+  { href: "/stability", label: "React stability" },
 ] as const;
 
 function normalizedPathname(): string {
@@ -28,6 +30,8 @@ export function App(): ReactElement {
         ? <DataOriginsPage />
         : pathname === "/diagnostics"
           ? <DiagnosticsPage />
+          : pathname === "/stability"
+            ? <StabilityPage />
       : <ProductEditor />;
 
   return (
