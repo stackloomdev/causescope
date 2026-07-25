@@ -35,7 +35,10 @@ try {
   // A packed release bundles the private workspace packages, whose dist files
   // do not exist in a fresh checkout. Build them here so this verifier cannot
   // pass only because another local command happened to leave artifacts behind.
-  runPnpm(["build:packages"]);
+  // Keep clean package builds deterministic on constrained Windows runners,
+  // where starting every tsup/esbuild process concurrently can fail during
+  // native DLL initialization.
+  runPnpm(["build:stackblitz"]);
   const packDirectory = join(temporaryRoot, "pack");
   runPnpm(["--filter", "causescope", "pack", "--pack-destination", packDirectory]);
   const tarballName = readdirSync(packDirectory).find((file) => file.endsWith(".tgz"));
