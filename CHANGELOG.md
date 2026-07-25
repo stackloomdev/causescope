@@ -10,6 +10,7 @@ All notable changes to CauseScope will be documented here. The format follows [K
 - Added a symptom-first troubleshooting guide for expected unavailable evidence and common setup boundaries.
 - Added keyboard target selection, visible inspector focus, arrow-key tab navigation coverage, and predictable focus return on close.
 - Added a bounded Firefox 153.0 CI smoke lane for exact source selection, state transitions, and redacted trace exports.
+- Added a deterministic public API snapshot and release gate for all five npm entrypoints and their published declaration graph.
 
 ## [1.0.0-beta.3] - 2026-07-25
 

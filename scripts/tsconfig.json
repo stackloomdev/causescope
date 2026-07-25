@@ -5,6 +5,7 @@
   },
   "include": [
     "trace-export-v1-example.ts",
+    "verify-public-api.ts",
     "verify-trace-contract.ts"
   ]
 }

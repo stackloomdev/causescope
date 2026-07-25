@@ -121,6 +121,8 @@ CI installs the packed npm artifact into isolated Vite 5.4, 6.4, 7.3, and 8.1 co
 
 Artifact growth is gated separately: the browser runtime graph, Vite plugin, optional adapters, publishable files, and npm tarball all have enforced [performance budgets](https://stackloomdev.github.io/causescope/performance).
 
+The five supported npm entrypoints and their complete declaration graph are protected by a reviewable [public API snapshot](https://stackloomdev.github.io/causescope/public-api).
+
 ## Privacy and limits
 
 CauseScope has no account, telemetry, remote service, or upload path. Network and storage tracing are development-only and independently configurable. It records only storage keys accessed during the current page run; it does not enumerate browser storage.
