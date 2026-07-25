@@ -39,7 +39,7 @@ try {
   // Keep clean package builds deterministic on constrained Windows runners,
   // where starting every tsup/esbuild process concurrently can fail during
   // native DLL initialization.
-  runPnpm(["build:stackblitz"]);
+  runPnpm(["build:packages:serial"]);
   const packDirectory = join(temporaryRoot, "pack");
   runPnpm(["--filter", "causescope", "pack", "--pack-destination", packDirectory]);
   const tarballName = readdirSync(packDirectory).find((file) => file.endsWith(".tgz"));

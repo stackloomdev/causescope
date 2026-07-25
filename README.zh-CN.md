@@ -12,7 +12,7 @@
 [![CI](https://github.com/stackloomdev/causescope/actions/workflows/ci.yml/badge.svg)](https://github.com/stackloomdev/causescope/actions/workflows/ci.yml)
 [![license](https://img.shields.io/github/license/stackloomdev/causescope?color=737077)](LICENSE)
 
-[在线实验室](https://stackblitz.com/fork/github/stackloomdev/causescope?startScript=dev%3Astackblitz) · [文档](https://stackloomdev.github.io/causescope/) · [60 秒接入](https://stackloomdev.github.io/causescope/getting-started) · [English](README.md)
+[在线实验室](https://stackblitz.com/fork/github/stackloomdev/causescope/tree/main/examples/stackblitz?title=CauseScope%20Live%20Lab) · [文档](https://stackloomdev.github.io/causescope/) · [60 秒接入](https://stackloomdev.github.io/causescope/getting-started) · [English](README.md)
 
 </div>
 
@@ -112,6 +112,8 @@ React Query 来源包含 query key、status、fetch status 和更新时间。Zus
 
 CI 会把打包后的 npm 产物分别安装进隔离的 Vite 5.4、6.4、7.3、8.1 消费端，并执行真实 TSX 转换。[`examples/`](examples) 还覆盖 React 18/19、Babel/SWC、多页面、多组件、多文件、Portal、Suspense、Error Boundary、Fast Refresh、React Query 与 Zustand 浏览器场景。
 
+产物体积也有独立门禁：浏览器 runtime 图、Vite 插件、可选适配器、发布文件和 npm tarball 都受[性能预算](https://stackloomdev.github.io/causescope/performance)约束。
+
 ## 隐私与边界
 
 CauseScope 不需要账号，没有遥测、远程服务或上传链路。Network 与 Storage 追踪只在开发环境工作，并可分别关闭。它只记录当前页面运行期间真正访问过的 Storage key，不会枚举浏览器存储。
@@ -129,7 +131,7 @@ pnpm install
 pnpm check
 ```
 
-完整检查包含类型检查、单元测试、全部构建、生产产物无残留扫描、Vite 5–8 独立安装消费端，以及 Playwright 端到端测试。
+完整检查包含类型检查、单元测试、全部构建、生产产物无残留与性能预算扫描、隔离 StackBlitz 构建、Vite 5–8 独立安装消费端，以及 Playwright 端到端测试。
 
 欢迎提交 Issue 和 Pull Request。参与前请先阅读 [CONTRIBUTING.md](CONTRIBUTING.md)、[SECURITY.md](SECURITY.md) 和 [CODE_OF_CONDUCT.md](CODE_OF_CONDUCT.md)。
 

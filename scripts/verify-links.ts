@@ -2,8 +2,8 @@ import { readdir, readFile } from "node:fs/promises";
 import { extname, join, relative, resolve, sep } from "node:path";
 
 const repositoryRoot = resolve(".");
-const expectedLiveDemo = "https://stackblitz.com/fork/github/stackloomdev/causescope?startScript=dev%3Astackblitz";
-const expectedStartCommand = "pnpm dev:stackblitz";
+const expectedLiveDemo = "https://stackblitz.com/fork/github/stackloomdev/causescope/tree/main/examples/stackblitz?title=CauseScope%20Live%20Lab";
+const expectedStartCommand = "pnpm dev";
 const liveDemoPattern = /https?:\/\/(?:www\.)?stackblitz\.com\/[^\s"'<>)]*stackloomdev\/causescope[^\s"'<>)]*/gi;
 const textExtensions = new Set([".md", ".ts"]);
 const ignoredDirectories = new Set(["cache", "dist", "node_modules"]);
@@ -53,9 +53,9 @@ if (invalidReferences.length > 0) {
   throw new Error(`StackBlitz live-lab links must use the WebContainer-safe startup script:\n${invalidReferences.map(({ file, url }) => `${file}: ${url}`).join("\n")}`);
 }
 
-const stackBlitzConfig = JSON.parse(await readFile(resolve(".stackblitzrc"), "utf8")) as { startCommand?: unknown };
+const stackBlitzConfig = JSON.parse(await readFile(resolve("examples/stackblitz/.stackblitzrc"), "utf8")) as { startCommand?: unknown };
 if (stackBlitzConfig.startCommand !== expectedStartCommand) {
-  throw new Error(`.stackblitzrc must start ${expectedStartCommand}; received ${String(stackBlitzConfig.startCommand)}.`);
+  throw new Error(`The standalone live lab must start ${expectedStartCommand}; received ${String(stackBlitzConfig.startCommand)}.`);
 }
 
-console.log(`All ${references.length} public StackBlitz live-lab links and .stackblitzrc use dev:stackblitz.`);
+console.log(`All ${references.length} public links target the standalone StackBlitz live lab.`);
