@@ -36,6 +36,7 @@ export default defineConfig({
           { text: "Getting started", link: "/getting-started" },
           { text: "Configuration", link: "/configuration" },
           { text: "Data adapters", link: "/adapters" },
+          { text: "Trace export contract", link: "/trace-export" },
           { text: "Privacy", link: "/privacy" },
         ],
       },

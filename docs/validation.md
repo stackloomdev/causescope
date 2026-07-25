@@ -4,6 +4,7 @@ CauseScope treats browser-visible evidence as the acceptance boundary.
 
 - Babel tests cover source coordinates, state and reducer wrapping, short-circuit semantics, conditional branches, props, storage origins, and snapshots.
 - Runtime tests cover repeated component instances, static-text fallback, state transitions, provenance, redaction, export, and bounded recording.
+- The documented trace v1 JSON example is compiled against the public TypeScript contract and compared byte-for-structure in the release gate.
 - Adapter tests connect real runtime registration to React Query and Zustand-like sources.
 - Vite tests cover development-only application, SSR exclusion, source-map coordinates, ignored directories, and editor endpoint boundaries.
 - Playwright selects elements across multiple routes, components, and files; changes state; validates exact source locations; switches selection directly; and exports traces. React 19 coverage crosses a Portal root, Suspense retry, Error Boundary recovery, CSS Module and Tailwind output, and a real Vite Fast Refresh while preserving hook state. Separate React 18/Vite 6 and React 19/SWC scenarios verify both React generations and both official React transform paths end to end.

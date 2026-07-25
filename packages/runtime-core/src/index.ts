@@ -16,12 +16,20 @@ import type {
   CauseScopeRuntime,
   CauseScopeRuntimeOptions,
   RuntimeEvent,
+  SerializedValue,
   SourceLocation,
   StateSnapshot,
   StateUpdate,
   StorageTrace,
   StoreUpdate,
   TraceExport,
+  TraceExportConditionEvaluation,
+  TraceExportExpression,
+  TraceExportProp,
+  TraceExportReducerDispatch,
+  TraceExportRuntimeEvent,
+  TraceExportStateChange,
+  TraceExportValueOrigin,
   TraceBooleanInput,
   TraceExpressionInput,
   TracePropInput,
@@ -505,39 +513,63 @@ export class CauseScopeRuntimeImpl implements CauseScopeRuntime {
       sensitiveTextValues,
       selectedValueIsSensitive && event.targetNodeId === inspection.nodeId,
     );
-    const expressions = inspection.expressions.map((expression) => ({
-      ...expression,
-      result: this.#redactExportValue(expression.result, expression.expression),
-      inputs: Object.fromEntries(Object.entries(expression.inputs).map(([key, value]) => [key, this.#redactExportValue(value, key)])),
-      inputOrigins: Object.fromEntries(Object.entries(expression.inputOrigins).map(([key, origins]) => [
-        key,
-        origins.map((origin) => ({
-          ...origin,
-          ...(origin.metadata ? { metadata: this.#redactMetadata(origin.metadata) } : {}),
-        })),
-      ])),
-      ...(expression.conditionEvaluation ? {
-        conditionEvaluation: this.#redactConditionEvaluation(expression.conditionEvaluation),
-      } : {}),
-    }));
-    const stateChanges = inspection.stateUpdates.map((update) => ({
-      ...update,
-      previous: this.#redactExportValue(update.previous, update.stateName),
-      next: this.#redactExportValue(update.next, update.stateName),
-      ...(update.action !== undefined ? { action: this.#redactExportValue(update.action) } : {}),
-      ...(update.event ? { event: redactEventContext(update.event) } : {}),
-      ...(update.reducerDispatches ? {
-        reducerDispatches: update.reducerDispatches.map((dispatch) => ({
-          ...dispatch,
-          action: this.#redactExportValue(dispatch.action),
-          ...(dispatch.event ? { event: redactEventContext(dispatch.event) } : {}),
-        })),
-      } : {}),
-    }));
-    const props = inspection.props.map((prop) => ({
-      ...prop,
-      value: this.#redactExportValue(prop.value, prop.name),
-    }));
+    const expressions = inspection.expressions.map((expression): TraceExportExpression => {
+      const {
+        conditionEvaluation,
+        inputOrigins,
+        inputs,
+        result,
+        ...metadata
+      } = expression;
+      return {
+        ...metadata,
+        result: this.#redactExportValue(result, expression.expression),
+        inputs: Object.fromEntries(Object.entries(inputs).map(([key, value]) => [key, this.#redactExportValue(value, key)])),
+        inputOrigins: Object.fromEntries(Object.entries(inputOrigins).map(([key, origins]) => [
+          key,
+          origins.map((origin): TraceExportValueOrigin => {
+            const { metadata: originMetadata, ...originFields } = origin;
+            return {
+              ...originFields,
+              ...(originMetadata ? { metadata: this.#redactMetadata(originMetadata) } : {}),
+            };
+          }),
+        ])),
+        ...(conditionEvaluation ? {
+          conditionEvaluation: this.#redactConditionEvaluation(conditionEvaluation),
+        } : {}),
+      };
+    });
+    const stateChanges = inspection.stateUpdates.map((update): TraceExportStateChange => {
+      const {
+        action,
+        next,
+        previous,
+        reducerDispatches,
+        ...updateFields
+      } = update;
+      return {
+        ...updateFields,
+        previous: this.#redactExportValue(previous, update.stateName),
+        next: this.#redactExportValue(next, update.stateName),
+        ...(action !== undefined ? { action: this.#redactExportValue(action) } : {}),
+        ...(update.event ? { event: redactEventContext(update.event) } : {}),
+        ...(reducerDispatches ? {
+          reducerDispatches: reducerDispatches.map((dispatch): TraceExportReducerDispatch => ({
+            ...dispatch,
+            action: this.#redactExportValue(dispatch.action),
+            ...(dispatch.event ? { event: redactEventContext(dispatch.event) } : {}),
+          })),
+        } : {}),
+      };
+    });
+    const props = inspection.props.map((prop): TraceExportProp => {
+      const { value, ...propFields } = prop;
+      return {
+        ...propFields,
+        value: this.#redactExportValue(value, prop.name),
+      };
+    });
     const component: NonNullable<TraceExport["component"]> = {
       parents: [...inspection.parentComponents],
       props,
@@ -571,19 +603,22 @@ export class CauseScopeRuntimeImpl implements CauseScopeRuntime {
         changedFields: [...update.changedFields],
         ...(update.event ? { event: redactEventContext(update.event) } : {}),
       })),
-      timeline: inspection.timeline.map((event) => ({
-        ...event,
-        label: this.#redactTraceText(
-          event.label,
-          sensitiveTextValues,
-          selectedValueIsSensitive && (
-            event.metadata?.targetNodeId === inspection.nodeId
-            || event.metadata?.triggerTargetNodeId === inspection.nodeId
+      timeline: inspection.timeline.map((event): TraceExportRuntimeEvent => {
+        const { metadata, ...eventFields } = event;
+        return {
+          ...eventFields,
+          label: this.#redactTraceText(
+            event.label,
+            sensitiveTextValues,
+            selectedValueIsSensitive && (
+              metadata?.targetNodeId === inspection.nodeId
+              || metadata?.triggerTargetNodeId === inspection.nodeId
+            ),
+            event.type,
           ),
-          event.type,
-        ),
-        ...(event.metadata ? { metadata: this.#redactMetadata(event.metadata) } : {}),
-      })),
+          ...(metadata ? { metadata: this.#redactMetadata(metadata) } : {}),
+        };
+      }),
     };
     if (inspection.source) trace.source = inspection.source;
     return trace;
@@ -1562,7 +1597,7 @@ export class CauseScopeRuntimeImpl implements CauseScopeRuntime {
     return key.toLowerCase().replace(/[^a-z0-9]/g, "") === "querykey";
   }
 
-  #redactExportValue(value: unknown, key?: string): unknown {
+  #redactExportValue(value: unknown, key?: string): SerializedValue {
     if (key && this.#isSensitiveKey(key)) return { type: "primitive", value: "[REDACTED]" };
     if (key && this.#isQueryKeyMetadataKey(key)) {
       const sanitized = this.#redactInspectionValue(value, key, [], 0, new WeakSet<object>());
@@ -1571,38 +1606,39 @@ export class CauseScopeRuntimeImpl implements CauseScopeRuntime {
     return serializeValue(value, this.#redact);
   }
 
-  #redactMetadata(metadata: Record<string, unknown>): Record<string, unknown> {
+  #redactMetadata(metadata: Record<string, unknown>): Record<string, SerializedValue> {
     return Object.fromEntries(Object.entries(metadata).map(([key, value]) => [
       key,
       this.#redactExportValue(value, key),
     ]));
   }
 
-  #redactConditionEvaluation(evaluation: ConditionEvaluation): ConditionEvaluation {
+  #redactConditionEvaluation(evaluation: ConditionEvaluation): TraceExportConditionEvaluation {
+    const { children, value, ...definition } = evaluation;
     return {
-      ...evaluation,
+      ...definition,
       ...(Object.prototype.hasOwnProperty.call(evaluation, "value") ? {
-        value: this.#redactExportValue(evaluation.value, evaluation.expression),
+        value: this.#redactExportValue(value, evaluation.expression),
       } : {}),
-      ...(evaluation.children ? {
-        children: evaluation.children.map((child) => this.#redactConditionEvaluation(child)),
+      ...(children ? {
+        children: children.map((child) => this.#redactConditionEvaluation(child)),
       } : {}),
     };
   }
 
   #displayExportValue(value: unknown, key?: string): string {
     const serialized = this.#redactExportValue(value, key);
-    if (!isRecord(serialized) || typeof serialized.type !== "string") return "[Unsupported]";
     if (serialized.type === "primitive") return displayValue(serialized.value);
-    if (serialized.type === "date" && typeof serialized.value === "string") return serialized.value;
+    if (serialized.type === "undefined") return "undefined";
+    if (serialized.type === "date") return serialized.value;
     if (serialized.type === "function") {
       return typeof serialized.name === "string" ? `[function ${serialized.name}]` : "[function]";
     }
-    if (serialized.type === "array" && Array.isArray(serialized.value)) return `[Array(${serialized.value.length})]`;
+    if (serialized.type === "array") return `[Array(${serialized.value.length})]`;
     if (serialized.type === "object") return "[Object]";
     if (serialized.type === "react-element") return "[React element]";
     if (serialized.type === "dom-node") return "[DOM node]";
-    return typeof serialized.reason === "string" ? `[${serialized.reason}]` : "[Unsupported]";
+    return `[${serialized.reason}]`;
   }
 
   #redactExportAttribute(name: string, value: string): string {

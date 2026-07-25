@@ -1,0 +1,229 @@
+{
+  "version": 1,
+  "generatedAt": "2026-01-15T10:00:00.000Z",
+  "element": {
+    "tagName": "button",
+    "label": "Refund order",
+    "attributes": {
+      "disabled": "",
+      "data-status": "pending"
+    }
+  },
+  "component": {
+    "parents": [
+      "OrderActions",
+      "OrderPage"
+    ],
+    "props": [
+      {
+        "name": "orderStatus",
+        "componentName": "RefundButton",
+        "relationship": "component",
+        "passedFrom": {
+          "id": "prop-order-status",
+          "componentName": "RefundButton",
+          "parentComponentName": "OrderActions",
+          "property": "orderStatus",
+          "expression": "order.status",
+          "source": {
+            "file": "src/pages/OrderPage.tsx",
+            "line": 42,
+            "column": 11
+          }
+        },
+        "value": {
+          "type": "primitive",
+          "value": "pending"
+        }
+      }
+    ],
+    "name": "RefundButton"
+  },
+  "expressions": [
+    {
+      "id": "expression-can-refund",
+      "nodeId": "node-refund-button",
+      "kind": "attribute",
+      "property": "disabled",
+      "expression": "!canRefund",
+      "source": {
+        "file": "src/components/RefundButton.tsx",
+        "line": 18,
+        "column": 7
+      },
+      "componentName": "RefundButton",
+      "decisionLabel": "Refund availability",
+      "inputStateIds": {
+        "canRefund": "state-can-refund"
+      },
+      "traceMode": "operands",
+      "decidingBranch": "!canRefund",
+      "timestamp": 1768470000000,
+      "result": {
+        "type": "primitive",
+        "value": true
+      },
+      "inputs": {
+        "canRefund": {
+          "type": "primitive",
+          "value": false
+        },
+        "policyReason": {
+          "type": "undefined"
+        }
+      },
+      "inputOrigins": {
+        "canRefund": [
+          {
+            "id": "origin-order-request",
+            "kind": "network",
+            "confidence": "confirmed",
+            "label": "GET /api/orders/4821?token=%5BREDACTED%5D",
+            "path": "response.data.status",
+            "traceId": "request-order-4821",
+            "metadata": {
+              "accessToken": {
+                "type": "primitive",
+                "value": "[REDACTED]"
+              },
+              "status": {
+                "type": "primitive",
+                "value": 200
+              }
+            }
+          }
+        ]
+      },
+      "conditionEvaluation": {
+        "id": "condition-can-refund",
+        "type": "unary",
+        "expression": "!canRefund",
+        "operator": "!",
+        "evaluated": true,
+        "deciding": true,
+        "value": {
+          "type": "primitive",
+          "value": true
+        },
+        "children": [
+          {
+            "id": "condition-can-refund-input",
+            "type": "identifier",
+            "expression": "canRefund",
+            "inputName": "canRefund",
+            "evaluated": true,
+            "value": {
+              "type": "primitive",
+              "value": false
+            }
+          }
+        ]
+      }
+    }
+  ],
+  "stateChanges": [
+    {
+      "id": "state-update-order-status",
+      "stateId": "state-order-status",
+      "instanceId": "OrderPage:1",
+      "stateName": "orderStatus",
+      "componentName": "OrderPage",
+      "source": {
+        "file": "src/pages/OrderPage.tsx",
+        "line": 42,
+        "column": 11
+      },
+      "event": {
+        "type": "click",
+        "targetNodeId": "node-refresh-order",
+        "targetLabel": "button \"Refresh order\"",
+        "source": {
+          "file": "src/pages/OrderPage.tsx",
+          "line": 42,
+          "column": 11
+        },
+        "handlerProperty": "onClick",
+        "handlerExpression": "refreshOrder",
+        "timestamp": 1768469999800
+      },
+      "timestamp": 1768470000000,
+      "updateType": "value",
+      "previous": {
+        "type": "primitive",
+        "value": "paid"
+      },
+      "next": {
+        "type": "primitive",
+        "value": "pending"
+      }
+    }
+  ],
+  "networkRequests": [
+    {
+      "id": "request-order-4821",
+      "transport": "fetch",
+      "method": "GET",
+      "url": "/api/orders/4821?token=%5BREDACTED%5D",
+      "startedAt": 1768469999700,
+      "completedAt": 1768469999950,
+      "status": 200,
+      "responseType": "json",
+      "responseBody": {
+        "type": "object",
+        "value": {
+          "accessToken": {
+            "type": "primitive",
+            "value": "[REDACTED]"
+          },
+          "status": {
+            "type": "primitive",
+            "value": "pending"
+          }
+        }
+      },
+      "responseBytes": 131,
+      "truncated": false
+    }
+  ],
+  "storageAccesses": [],
+  "storeUpdates": [],
+  "timeline": [
+    {
+      "id": "timeline-refresh-click",
+      "type": "click",
+      "label": "click button \"Refresh order\" → refreshOrder",
+      "timestamp": 1768469999800,
+      "source": {
+        "file": "src/pages/OrderPage.tsx",
+        "line": 42,
+        "column": 11
+      },
+      "metadata": {
+        "handlerProperty": {
+          "type": "primitive",
+          "value": "onClick"
+        },
+        "targetNodeId": {
+          "type": "primitive",
+          "value": "node-refresh-order"
+        }
+      }
+    },
+    {
+      "id": "timeline-status-update",
+      "type": "state-update",
+      "label": "orderStatus changed from paid to pending",
+      "timestamp": 1768470000000,
+      "source": {
+        "file": "src/pages/OrderPage.tsx",
+        "line": 42,
+        "column": 11
+      }
+    }
+  ],
+  "source": {
+    "file": "src/components/RefundButton.tsx",
+    "line": 18,
+    "column": 7
+  }
+}

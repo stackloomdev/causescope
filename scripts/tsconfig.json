@@ -1,0 +1,10 @@
+{
+  "extends": "../tsconfig.base.json",
+  "compilerOptions": {
+    "types": ["node"]
+  },
+  "include": [
+    "trace-export-v1-example.ts",
+    "verify-trace-contract.ts"
+  ]
+}
