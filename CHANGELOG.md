@@ -4,6 +4,10 @@ All notable changes to CauseScope will be documented here. The format follows [K
 
 ## [Unreleased]
 
+### Added
+
+- Added React SWC browser coverage plus Node 18 and Windows package-verification lanes.
+
 ### Fixed
 
 - Made every StackBlitz live-lab entry WebContainer-safe by replacing its Turbo startup step with an ordered pnpm workspace build.

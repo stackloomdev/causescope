@@ -1,5 +1,5 @@
 import { spawnSync } from "node:child_process";
-import { mkdtempSync, readFileSync, readdirSync, rmSync, writeFileSync } from "node:fs";
+import { mkdirSync, mkdtempSync, readFileSync, readdirSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -7,6 +7,8 @@ import { fileURLToPath } from "node:url";
 const workspaceRoot = resolve(fileURLToPath(new URL("..", import.meta.url)));
 const temporaryRoot = mkdtempSync(join(tmpdir(), "causescope-package-"));
 const supportedViteVersions = ["5.4.21", "6.4.3", "7.3.6", "8.1.5"] as const;
+const pnpmCommand = process.platform === "win32" ? "pnpm.cmd" : "pnpm";
+const pnpmEntry = process.env.npm_execpath;
 
 function run(command: string, args: string[], cwd = workspaceRoot): string {
   const result = spawnSync(command, args, { cwd, encoding: "utf8", stdio: ["ignore", "pipe", "pipe"] });
@@ -14,6 +16,12 @@ function run(command: string, args: string[], cwd = workspaceRoot): string {
     throw new Error([`Command failed: ${command} ${args.join(" ")}`, result.stdout, result.stderr].filter(Boolean).join("\n"));
   }
   return result.stdout;
+}
+
+function runPnpm(args: string[], cwd = workspaceRoot): string {
+  return pnpmEntry
+    ? run(process.execPath, [pnpmEntry, ...args], cwd)
+    : run(pnpmCommand, args, cwd);
 }
 
 function filesWithin(directory: string): string[] {
@@ -27,13 +35,13 @@ try {
   // A packed release bundles the private workspace packages, whose dist files
   // do not exist in a fresh checkout. Build them here so this verifier cannot
   // pass only because another local command happened to leave artifacts behind.
-  run("pnpm", ["build:packages"]);
+  runPnpm(["build:packages"]);
   const packDirectory = join(temporaryRoot, "pack");
-  run("pnpm", ["--filter", "causescope", "pack", "--pack-destination", packDirectory]);
+  runPnpm(["--filter", "causescope", "pack", "--pack-destination", packDirectory]);
   const tarballName = readdirSync(packDirectory).find((file) => file.endsWith(".tgz"));
   if (!tarballName) throw new Error("CauseScope pack did not produce a tarball");
   const tarball = join(packDirectory, tarballName);
-  const entries = run("tar", ["-tf", tarball]).trim().split("\n");
+  const entries = run("tar", ["-tf", tarball]).trim().split(/\r?\n/);
   const forbiddenEntry = entries.find((entry) => /(?:^|\/)(?:\.turbo|src|tsconfig[^/]*|node_modules)(?:\/|$)/.test(entry));
   if (forbiddenEntry) throw new Error(`Tarball contains a non-release file: ${forbiddenEntry}`);
   for (const required of [
@@ -56,7 +64,7 @@ try {
   }
 
   const extracted = join(temporaryRoot, "extracted");
-  run("mkdir", ["-p", extracted]);
+  mkdirSync(extracted, { recursive: true });
   run("tar", ["-xzf", tarball, "-C", extracted]);
   const packageRoot = join(extracted, "package");
   const manifest = JSON.parse(readFileSync(join(packageRoot, "package.json"), "utf8")) as {
@@ -94,7 +102,7 @@ try {
 
     const consumer = join(temporaryRoot, `consumer-vite-${viteVersion}`);
     const sourceDirectory = join(consumer, "src");
-    run("mkdir", ["-p", sourceDirectory]);
+    mkdirSync(sourceDirectory, { recursive: true });
     writeFileSync(join(consumer, "package.json"), JSON.stringify({ private: true, type: "module" }, null, 2));
     writeFileSync(join(consumer, "tsconfig.json"), JSON.stringify({
       compilerOptions: {
@@ -146,7 +154,10 @@ try {
       "    throw new Error('CauseScope did not instrument TSX through Vite');",
       "  }",
       "  const sourceMap = result.map as { mappings?: string; sources?: string[]; sourcesContent?: Array<string | null> } | null;",
-      "  const appSourceIndex = sourceMap?.sources?.findIndex((source) => source === 'App.tsx' || source.endsWith('/src/App.tsx')) ?? -1;",
+      "  const appSourceIndex = sourceMap?.sources?.findIndex((source) => {",
+      "    const normalized = source.replaceAll('\\\\', '/');",
+      "    return normalized === 'App.tsx' || normalized.endsWith('/src/App.tsx');",
+      "  }) ?? -1;",
       "  if (!sourceMap?.mappings || appSourceIndex < 0) {",
       "    throw new Error(`CauseScope did not preserve an App.tsx source map through Vite: ${JSON.stringify(sourceMap)}`);",
       "  }",
@@ -157,7 +168,7 @@ try {
       "  await server.close();",
       "}",
     ].join("\n"));
-    run("pnpm", [
+    runPnpm([
       "add",
       "--prefer-offline",
       "--ignore-scripts",
@@ -165,12 +176,13 @@ try {
       tarball,
       "@types/node@^22.10.2",
       "react@19.2.8",
+      "tsx@4.23.1",
       "typescript@^5.7.2",
       `vite@${viteVersion}`,
     ], consumer);
-    run("pnpm", ["exec", "tsc", "--project", "tsconfig.json"], consumer);
-    run("node", ["--experimental-strip-types", "verify-vite.ts"], consumer);
-    run("node", [
+    runPnpm(["exec", "tsc", "--project", "tsconfig.json"], consumer);
+    runPnpm(["exec", "tsx", "verify-vite.ts"], consumer);
+    run(process.execPath, [
       "--input-type=module",
       "--eval",
       [

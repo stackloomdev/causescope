@@ -103,11 +103,12 @@ React Query 来源包含 query key、status、fetch status 和更新时间。Zus
 | --- | --- |
 | React | 18、19 |
 | Vite | 5、6、7、8 |
+| React Vite 插件 | Babel（`@vitejs/plugin-react`）和 SWC（`@vitejs/plugin-react-swc`） |
 | Node.js | Vite 5 可使用 18.18+；其他版本遵循所选 Vite 的 Node.js 要求 |
 | TypeScript | 一等支持；应用与工具代码使用 TS/TSX，不包含 JS/JSX 源文件 |
 | 包管理器 | 消费端可用任意 npm 兼容客户端；仓库自身使用 **pnpm Workspace + Turborepo** |
 
-CI 会把打包后的 npm 产物分别安装进隔离的 Vite 5.4、6.4、7.3、8.1 消费端，并执行真实 TSX 转换。[`examples/`](examples) 还覆盖 React 18/19、多页面、多组件、多文件、React Query 与 Zustand 浏览器场景。
+CI 会把打包后的 npm 产物分别安装进隔离的 Vite 5.4、6.4、7.3、8.1 消费端，并执行真实 TSX 转换。[`examples/`](examples) 还覆盖 React 18/19、Babel/SWC、多页面、多组件、多文件、React Query 与 Zustand 浏览器场景。
 
 ## 隐私与边界
 
