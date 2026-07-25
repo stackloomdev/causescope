@@ -20,6 +20,7 @@
     "build": "turbo run build",
     "test": "turbo run test",
     "test:e2e": "pnpm build:packages && pnpm --filter @causescope/example-vite-react-19 test:e2e && pnpm --filter @causescope/example-vite-react-18 test:e2e && pnpm --filter @causescope/example-vite-react-swc test:e2e",
+    "test:e2e:firefox": "pnpm build:packages && pnpm --filter @causescope/example-vite-react-19 test:e2e:firefox",
     "test:package": "tsx scripts/verify-package.ts",
     "verify:links": "tsx scripts/verify-links.ts",
     "verify:performance": "tsx scripts/verify-performance.ts",

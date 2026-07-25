@@ -1,14 +1,14 @@
 import { defineConfig, devices } from "@playwright/test";
 
 export default defineConfig({
-  testDir: "./e2e",
-  testIgnore: "**/firefox/**",
+  testDir: "./e2e/firefox",
+  outputDir: "./test-results/firefox",
   fullyParallel: false,
   retries: 0,
   reporter: "line",
   timeout: 30_000,
   use: {
-    ...devices["Desktop Chrome"],
+    ...devices["Desktop Firefox"],
     baseURL: "http://127.0.0.1:5190",
     trace: "retain-on-failure",
   },
