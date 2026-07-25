@@ -36,8 +36,6 @@ export const overlayStyles = `
     outline-offset: 3px;
   }
 
-  .cs-drawer:focus { outline: none; }
-
   .cs-toggle,
   .cs-drawer {
     pointer-events: auto;

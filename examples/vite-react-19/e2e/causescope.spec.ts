@@ -12,6 +12,14 @@ async function closeInspector(page: Page): Promise<void> {
   await inspector(page).getByRole("button", { name: "Close" }).click();
 }
 
+async function focusWithKeyboard(page: Page, target: Locator, limit = 40): Promise<void> {
+  for (let index = 0; index < limit; index += 1) {
+    await page.keyboard.press("Tab");
+    if (await target.evaluate((element) => element.matches(":focus"))) return;
+  }
+  throw new Error(`Keyboard focus did not reach ${await target.getAttribute("aria-label") ?? await target.textContent() ?? "target"}`);
+}
+
 async function setHmrFixture(page: Page, mode: "baseline" | "updated"): Promise<void> {
   const result = await page.evaluate(async (nextMode) => {
     const response = await fetch(`/__fixtures/hmr?mode=${nextMode}`, { method: "POST" });
@@ -19,6 +27,54 @@ async function setHmrFixture(page: Page, mode: "baseline" | "updated"): Promise<
   }, mode);
   expect(result.ok, result.body).toBe(true);
 }
+
+test("opens, navigates, and closes the inspector with keyboard input only", async ({ page }) => {
+  await page.goto("/");
+
+  const inspectButton = page.getByRole("button", { name: "Inspect", exact: true });
+  await focusWithKeyboard(page, inspectButton);
+  await expect(inspectButton).toBeFocused();
+  await expect(inspectButton).toHaveCSS("outline-style", "solid");
+  await page.keyboard.press("Enter");
+
+  const selectButton = page.getByRole("button", { name: /Select an element/ });
+  await expect(selectButton).toHaveAttribute("aria-pressed", "true");
+  const titleInput = page.getByLabel("Title");
+  await focusWithKeyboard(page, titleInput);
+  await expect(titleInput).toBeFocused();
+  await page.keyboard.press("Enter");
+
+  const drawer = inspector(page);
+  await expect(drawer).toBeVisible();
+  const tabPanel = drawer.getByRole("tabpanel");
+  const views = [
+    { name: "Why", heading: "Source" },
+    { name: "Values", heading: "Values at render time" },
+    { name: "State", heading: "Component state" },
+    { name: "Network", heading: "Network origin" },
+    { name: "Timeline", heading: "Render timeline" },
+  ] as const;
+
+  for (const [index, view] of views.entries()) {
+    if (index > 0) await page.keyboard.press("ArrowRight");
+    const activeTab = drawer.getByRole("tab", { name: view.name });
+    await expect(activeTab).toBeFocused();
+    await expect(activeTab).toHaveAttribute("aria-selected", "true");
+    await expect(activeTab).toHaveCSS("outline-style", "solid");
+    await expect(tabPanel).toHaveAttribute("aria-labelledby", `cs-tab-${view.name.toLowerCase()}`);
+    await expect(tabPanel.getByRole("heading", { name: view.heading }).first()).toBeVisible();
+  }
+
+  await page.keyboard.press("Home");
+  await expect(drawer.getByRole("tab", { name: "Why" })).toBeFocused();
+  await page.keyboard.press("End");
+  await expect(drawer.getByRole("tab", { name: "Timeline" })).toBeFocused();
+  await page.keyboard.press("Escape");
+
+  await expect(drawer).toBeHidden();
+  await expect(inspectButton).toBeFocused();
+  await expect(inspectButton).toHaveCSS("outline-style", "solid");
+});
 
 test("keeps state and values isolated across repeated order rows", async ({ page }) => {
   await page.goto("/orders");

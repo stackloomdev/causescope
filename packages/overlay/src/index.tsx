@@ -629,14 +629,14 @@ function Drawer({
   onTabChange,
 }: DrawerProps): JSX.Element {
   const resizeState = useRef<{ startX: number; startWidth: number } | null>(null);
-  const drawerRef = useRef<HTMLElement | null>(null);
+  const closeButtonRef = useRef<HTMLButtonElement | null>(null);
   const tabRefs = useRef<Array<HTMLButtonElement | null>>([]);
   const source = inspection.source;
   const isStatic = inspection.expressions.length === 0;
 
   useEffect(() => {
-    drawerRef.current?.focus();
-  }, []);
+    (isStatic ? closeButtonRef.current : tabRefs.current[0])?.focus();
+  }, [inspection.nodeId, isStatic]);
 
   const startResize = (event: JSX.TargetedPointerEvent<HTMLButtonElement>): void => {
     resizeState.current = { startX: event.clientX, startWidth: drawerWidth };
@@ -681,8 +681,6 @@ function Drawer({
       data-static={isStatic ? "true" : "false"}
       style={{ "--cs-drawer-width": `${drawerWidth}px` }}
       aria-label="CauseScope inspector"
-      ref={drawerRef}
-      tabIndex={-1}
     >
       <button
         class="cs-resizer"
@@ -698,7 +696,7 @@ function Drawer({
         <div class="cs-title-row">
           <div class="cs-brand"><h1 class="cs-title">CauseScope</h1></div>
           <div class="cs-header-actions">
-            <button class="cs-text-button" type="button" onClick={onClose}>Close</button>
+            <button class="cs-text-button" type="button" ref={closeButtonRef} onClick={onClose}>Close</button>
           </div>
         </div>
         <div class="cs-summary">
@@ -784,9 +782,7 @@ function OverlayApp({ runtime, host }: { runtime: CauseScopeRuntime; host: HTMLE
       });
     };
 
-    const onPointerMove = (event: PointerEvent): void => {
-      if (!selectionActive) return;
-      const target = resolveInspectableTarget(event.target, host);
+    const highlightTarget = (target: Element | null): void => {
       if (!target) return setHighlight(null);
       const rect = target.getBoundingClientRect();
       if (rect.width <= 0 || rect.height <= 0) return setHighlight(null);
@@ -800,6 +796,17 @@ function OverlayApp({ runtime, host }: { runtime: CauseScopeRuntime; host: HTMLE
       });
     };
 
+    const onPointerMove = (event: PointerEvent): void => {
+      if (!selectionActive) return;
+      const target = resolveInspectableTarget(event.target, host);
+      highlightTarget(target);
+    };
+
+    const onFocusIn = (event: FocusEvent): void => {
+      if (!selectionActive) return;
+      highlightTarget(resolveInspectableTarget(event.target, host));
+    };
+
     const onPointerDown = (event: PointerEvent): void => {
       if (!selectionActive && !event.altKey) return;
       const target = resolveInspectableTarget(event.target, host);
@@ -807,6 +814,15 @@ function OverlayApp({ runtime, host }: { runtime: CauseScopeRuntime; host: HTMLE
       event.preventDefault();
       event.stopImmediatePropagation();
       suppressClickTarget.current = target;
+      inspect(target);
+    };
+
+    const onKeyboardSelect = (event: KeyboardEvent): void => {
+      if (!selectionActive || (event.key !== "Enter" && event.key !== " ")) return;
+      const target = resolveInspectableTarget(event.target, host);
+      if (!target) return;
+      event.preventDefault();
+      event.stopImmediatePropagation();
       inspect(target);
     };
 
@@ -864,37 +880,39 @@ function OverlayApp({ runtime, host }: { runtime: CauseScopeRuntime; host: HTMLE
       recordDomEvent(event);
     };
 
-    const onKeyDown = (event: KeyboardEvent): void => {
-      if (event.key !== "Escape") return;
-      if (drawerOpen) {
-        setDrawerOpen(false);
-        window.setTimeout(() => toggleButton.current?.focus(), 0);
-      }
+    const onWindowKeyDown = (event: KeyboardEvent): void => {
+      if (event.key !== "Escape" || (!drawerOpen && !inspectMode)) return;
+      if (drawerOpen) setDrawerOpen(false);
       setInspectMode(false);
       setHighlight(null);
+      window.setTimeout(() => toggleButton.current?.focus(), 0);
     };
 
     document.addEventListener("pointermove", onPointerMove, true);
     document.addEventListener("pointerdown", onPointerDown, true);
     document.addEventListener("pointerup", clearSuppressedClickAfterPointer, true);
     document.addEventListener("pointercancel", clearSuppressedClickAfterPointer, true);
+    document.addEventListener("focusin", onFocusIn, true);
+    document.addEventListener("keydown", onKeyboardSelect, true);
     document.addEventListener("click", onClick, true);
     for (const eventType of Object.keys(EVENT_HANDLER_PROPERTIES).filter((type) => type !== "click")) {
       document.addEventListener(eventType, recordDomEvent, true);
     }
-    window.addEventListener("keydown", onKeyDown);
+    window.addEventListener("keydown", onWindowKeyDown);
     return () => {
       document.removeEventListener("pointermove", onPointerMove, true);
       document.removeEventListener("pointerdown", onPointerDown, true);
       document.removeEventListener("pointerup", clearSuppressedClickAfterPointer, true);
       document.removeEventListener("pointercancel", clearSuppressedClickAfterPointer, true);
+      document.removeEventListener("focusin", onFocusIn, true);
+      document.removeEventListener("keydown", onKeyboardSelect, true);
       document.removeEventListener("click", onClick, true);
       for (const eventType of Object.keys(EVENT_HANDLER_PROPERTIES).filter((type) => type !== "click")) {
         document.removeEventListener(eventType, recordDomEvent, true);
       }
-      window.removeEventListener("keydown", onKeyDown);
+      window.removeEventListener("keydown", onWindowKeyDown);
     };
-  }, [drawerOpen, host, runtime, selectionActive]);
+  }, [drawerOpen, host, inspectMode, runtime, selectionActive]);
 
   const openEditor = async (): Promise<void> => {
     const source: SourceLocation | undefined = inspection?.source;
@@ -986,6 +1004,7 @@ function OverlayApp({ runtime, host }: { runtime: CauseScopeRuntime; host: HTMLE
           ref={toggleButton}
           data-active={inspectMode ? "true" : "false"}
           aria-pressed={inspectMode}
+          aria-label={inspectMode ? "Select an element: move focus to a page element and press Enter" : "Inspect"}
           onClick={() => {
             setInspectMode((current) => !current);
             setHighlight(null);
@@ -993,7 +1012,7 @@ function OverlayApp({ runtime, host }: { runtime: CauseScopeRuntime; host: HTMLE
         >
           <span class="cs-toggle-dot" />
           {inspectMode ? "Select an element" : "Inspect"}
-          <span class="cs-shortcut">⌥ Click</span>
+          <span class="cs-shortcut" aria-hidden="true">{inspectMode ? "Tab · Enter" : "⌥ Click"}</span>
         </button>
       ) : null}
 
