@@ -42,4 +42,5 @@ Applications with custom build pipelines can additionally scan output for `data-
 
 - Tune recording and filtering in [Configuration](configuration.md).
 - Connect React Query or Zustand in [Adapters](adapters.md).
+- Diagnose explicit unavailable states in [Troubleshooting](troubleshooting.md).
 - Review the [Privacy and threat model](privacy.md).
