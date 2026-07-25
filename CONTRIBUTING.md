@@ -45,6 +45,8 @@ Use a focused branch and keep generated output, credentials, private fixtures, a
 
 Maintainers use squash merges. A pull request is ready when its required checks pass, the browser-visible acceptance path has been exercised, and any public behavior or API change is represented in documentation and `CHANGELOG.md`.
 
+Maintainers preparing npm or GitHub promotion must follow [RELEASING.md](RELEASING.md). A release tag is a separate, explicitly approved action after the release PR and main-branch checks succeed.
+
 CauseScope is evidence-first: when provenance is missing or ambiguous, report it as unavailable rather than inferring a convenient answer.
 
 By participating, you agree to follow the [Code of Conduct](CODE_OF_CONDUCT.md).

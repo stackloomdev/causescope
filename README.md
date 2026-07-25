@@ -142,7 +142,7 @@ pnpm install
 pnpm check
 ```
 
-The full gate runs type checking, unit tests, every build, production-absence and performance-budget scans, an isolated StackBlitz build, packed-package Vite 5–8 consumers, and Playwright end-to-end coverage.
+The full gate runs type checking, unit tests, every build, production-absence and performance-budget scans, public API and release-policy checks, an isolated StackBlitz build, packed-package Vite 5–8 consumers, and Playwright end-to-end coverage.
 
 ## Contributing
 

@@ -11,6 +11,7 @@ import {
 import { tmpdir } from "node:os";
 import { basename, extname, join, relative, resolve, sep } from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
+import { assertLiveLabVersion } from "./release-policy.js";
 
 const workspaceRoot = resolve(fileURLToPath(new URL("..", import.meta.url)));
 const sourceRoot = join(workspaceRoot, "examples/stackblitz");
@@ -72,23 +73,18 @@ try {
   const packageManifest = JSON.parse(readFileSync(join(workspaceRoot, "packages/causescope/package.json"), "utf8")) as PackageManifest;
   const liveLabManifest = JSON.parse(readFileSync(join(sourceRoot, "package.json"), "utf8")) as PackageManifest;
   const stackBlitzConfig = JSON.parse(readFileSync(join(sourceRoot, ".stackblitzrc"), "utf8")) as { startCommand?: unknown };
+  const changelog = readFileSync(join(workspaceRoot, "CHANGELOG.md"), "utf8");
 
   if (liveLabManifest.packageManager !== repositoryManifest.packageManager) {
     throw new Error("The live lab must use the repository's pinned pnpm version.");
   }
   const repositoryVersion = String(packageManifest.version);
   const liveLabVersion = liveLabManifest.dependencies?.causescope ?? "";
-  const repositoryBeta = /^(\d+\.\d+\.\d+)-beta\.(\d+)$/.exec(repositoryVersion);
-  const liveLabBeta = /^(\d+\.\d+\.\d+)-beta\.(\d+)$/.exec(liveLabVersion);
-  if (!repositoryBeta || !liveLabBeta || repositoryBeta[1] !== liveLabBeta[1]) {
-    throw new Error(`The live lab must pin the repository's beta release line; received ${liveLabVersion}.`);
-  }
-  const releaseDistance = Number(repositoryBeta[2]) - Number(liveLabBeta[2]);
-  // A release PR has to merge before its tag can publish the next npm version,
-  // so the standalone lab may trail by exactly one beta during that window.
-  if (releaseDistance < 0 || releaseDistance > 1) {
-    throw new Error(`The live lab is ${releaseDistance} beta releases behind ${repositoryVersion}; update its package and lockfile.`);
-  }
+  const releaseHistory = [...changelog.matchAll(/^## \[([^\]]+)\] - \d{4}-\d{2}-\d{2}$/gm)]
+    .map((match) => match[1] ?? "");
+  // A release PR must merge before the target version exists on npm. During
+  // that window the standalone lab may pin exactly the preceding release.
+  assertLiveLabVersion(repositoryVersion, liveLabVersion, releaseHistory);
   const dependencyVersions = Object.values({ ...liveLabManifest.dependencies, ...liveLabManifest.devDependencies });
   if (dependencyVersions.some((version) => /^(?:file|link|workspace):/.test(version))) {
     throw new Error("The standalone live lab cannot depend on files outside its imported folder.");
@@ -148,7 +144,7 @@ try {
 
   const sourceBytes = sourceFiles.reduce((total, file) => total + statSync(file).size, 0);
   console.log(
-    `Verified the standalone pnpm StackBlitz lab with causescope@${liveLabVersion} in isolation: development transform, source map, and clean production build (${sourceFiles.length} files, ${(sourceBytes / 1024).toFixed(1)} KiB source).`,
+    `Verified the standalone pnpm StackBlitz lab with causescope@${liveLabVersion} for repository release ${repositoryVersion}: development transform, source map, and clean production build (${sourceFiles.length} files, ${(sourceBytes / 1024).toFixed(1)} KiB source).`,
   );
 } finally {
   rmSync(temporaryRoot, { recursive: true, force: true });
