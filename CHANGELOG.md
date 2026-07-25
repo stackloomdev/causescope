@@ -4,6 +4,8 @@ All notable changes to CauseScope will be documented here. The format follows [K
 
 ## [Unreleased]
 
+## [1.0.0-beta.4] - 2026-07-26
+
 ### Added
 
 - Documented the versioned trace export contract, published a checked synthetic v1 example, and exposed its TypeScript types from the main package entrypoint.
