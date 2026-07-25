@@ -10,6 +10,7 @@ All notable changes to CauseScope will be documented here. The format follows [K
 - Added browser fixtures for Portals, Suspense retries, Error Boundary recovery, Vite Fast Refresh, CSS Modules, and Tailwind CSS.
 - Added enforced artifact-size budgets for the browser runtime, Vite plugin, adapters, publishable files, and npm tarball.
 - Added a standalone TypeScript StackBlitz lab that installs only the published package and its minimal React/Vite toolchain.
+- Added a public roadmap, support and community guides, focused issue forms, and contribution-ready project lanes.
 
 ### Fixed
 

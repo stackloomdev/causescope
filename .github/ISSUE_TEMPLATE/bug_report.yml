@@ -5,12 +5,34 @@ labels: [bug, triage]
 body:
   - type: markdown
     attributes:
-      value: Remove secrets, private source code, and customer data before submitting.
+      value: Search existing issues first. Remove secrets, private source code, customer data, and unredacted traces before submitting.
+  - type: dropdown
+    id: area
+    attributes:
+      label: Area
+      options:
+        - Element selection and source location
+        - Expressions and condition evidence
+        - React state, props, or event provenance
+        - Network or storage provenance
+        - React Query or Zustand adapter
+        - Packaging, compatibility, or production removal
+        - Documentation or live lab
+        - Other
+    validations:
+      required: true
   - type: textarea
-    id: behavior
+    id: observed
     attributes:
       label: What happened?
-      description: Describe the selected element, what CauseScope showed, and what evidence you expected.
+      description: Describe the selected element, interaction, and evidence CauseScope showed.
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: What evidence did you expect?
+      description: Name the source location, value, transition, or unavailable state that would be correct.
     validations:
       required: true
   - type: textarea
@@ -24,7 +46,7 @@ body:
     id: versions
     attributes:
       label: Versions
-      placeholder: CauseScope, React, Vite, Node.js, browser
+      placeholder: CauseScope, React, Vite, React plugin, Node.js, package manager, browser, operating system
     validations:
       required: true
   - type: dropdown
@@ -42,5 +64,7 @@ body:
     attributes:
       label: Safety check
       options:
-        - label: I removed secrets and private application data from this report.
+        - label: I reproduced this on the latest CauseScope beta or stable release.
+          required: true
+        - label: I removed secrets, private source code, customer data, and unredacted traces from this report.
           required: true

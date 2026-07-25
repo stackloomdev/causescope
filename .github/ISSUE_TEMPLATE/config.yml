@@ -1,5 +1,8 @@
 blank_issues_enabled: false
 contact_links:
+  - name: Questions and early ideas
+    url: https://github.com/stackloomdev/causescope/discussions
+    about: Ask for setup help or discuss an idea before its evidence path and scope are settled.
   - name: Security report
     url: https://github.com/stackloomdev/causescope/security/advisories/new
     about: Report a vulnerability privately.
