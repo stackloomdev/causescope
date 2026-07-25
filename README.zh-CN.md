@@ -105,6 +105,7 @@ React Query 来源包含 query key、status、fetch status 和更新时间。Zus
 | React 渲染边界 | Portal、Suspense、Error Boundary、Vite Fast Refresh |
 | Vite | 5、6、7、8 |
 | React Vite 插件 | Babel（`@vitejs/plugin-react`）和 SWC（`@vitejs/plugin-react-swc`） |
+| 自动化浏览器 | Chromium（完整套件）；Firefox 153.0（源码、状态与导出 smoke） |
 | 样式方案 | CSS Modules、Tailwind CSS 4 |
 | Node.js | Vite 5 可使用 18.18+；其他版本遵循所选 Vite 的 Node.js 要求 |
 | TypeScript | 一等支持；应用与工具代码使用 TS/TSX，不包含 JS/JSX 源文件 |

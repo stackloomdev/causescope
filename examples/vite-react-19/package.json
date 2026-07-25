@@ -11,6 +11,7 @@
     "capture:inspector": "node --experimental-strip-types scripts/capture-inspector.ts",
     "test": "vitest run --passWithNoTests",
     "test:e2e": "playwright test",
+    "test:e2e:firefox": "playwright test --config playwright.firefox.config.ts",
     "typecheck": "tsc --noEmit",
     "lint": "tsc --noEmit"
   },

@@ -111,6 +111,7 @@ React Query provenance includes the query key, status, fetch status, and update 
 | React rendering | Portals, Suspense, Error Boundaries, and Vite Fast Refresh |
 | Vite | 5, 6, 7, and 8 |
 | React Vite plugin | Babel (`@vitejs/plugin-react`) and SWC (`@vitejs/plugin-react-swc`) |
+| Automated browsers | Chromium (full suite); Firefox 153.0 (focused source, state, and export smoke) |
 | Styling | CSS Modules and Tailwind CSS 4 |
 | Node.js | 18.18+ for Vite 5; follow the selected Vite version’s Node.js requirement |
 | TypeScript | First-class; authored application and tooling code uses TS/TSX, with no JS/JSX source files |
