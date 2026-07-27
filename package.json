@@ -1,6 +1,6 @@
 {
   "name": "causescope-monorepo",
-  "version": "1.0.0-beta.8",
+  "version": "1.0.0-beta.9",
   "private": true,
   "description": "Click any UI. Trace the cause.",
   "license": "MIT",

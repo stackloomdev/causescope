@@ -4,6 +4,17 @@ All notable changes to CauseScope will be documented here. The format follows [K
 
 ## [Unreleased]
 
+## [1.0.0-beta.9] - 2026-07-28
+
+### Added
+
+- Added the `vite-plugin` npm keyword so CauseScope can be discovered by the official Vite Plugin Registry.
+- Added a high-resolution MP4 demo export and a reproducible TypeScript/FFmpeg capture pipeline.
+
+### Changed
+
+- Re-recorded the refund demo as a complete, stable flow from element selection through the confirmed network response.
+
 ## [1.0.0-beta.8] - 2026-07-27
 
 ### Added

@@ -9,7 +9,7 @@
     "build": "tsc --noEmit && vite build"
   },
   "dependencies": {
-    "causescope": "1.0.0-beta.7",
+    "causescope": "1.0.0-beta.8",
     "react": "19.2.8",
     "react-dom": "19.2.8"
   },
