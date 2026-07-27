@@ -3,6 +3,7 @@ import { ProductEditor } from "./ProductEditor";
 import { AccountPage } from "./pages/AccountPage";
 import { DataOriginsPage } from "./pages/DataOriginsPage";
 import { DiagnosticsPage } from "./pages/DiagnosticsPage";
+import { GranularityPage } from "./pages/GranularityPage";
 import { OrdersPage } from "./pages/OrdersPage";
 import { StabilityPage } from "./pages/StabilityPage";
 
@@ -32,6 +33,8 @@ export function App(): ReactElement {
           ? <DiagnosticsPage />
           : pathname === "/stability"
             ? <StabilityPage />
+            : pathname === "/granularity"
+              ? <GranularityPage />
       : <ProductEditor />;
 
   return (

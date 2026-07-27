@@ -16,7 +16,7 @@ See [Getting started](/getting-started) for the supported configuration and [Per
 
 ## A dependency-owned element has no source
 
-**Visible symptom.** Selecting an element rendered inside a third-party component shows **Source unavailable**, no dynamic JSX expression, or an origin that remains unconfirmed. A nearby project-owned wrapper may still resolve correctly.
+**Visible symptom.** Selecting an element rendered inside a third-party component shows **Source unavailable**, no dynamic JSX expression, or an origin that remains unconfirmed. CauseScope still selects the nearest interactive DOM boundary instead of replacing it with a larger project-owned wrapper.
 
 **Why evidence is unavailable.** CauseScope instruments project-owned JSX/TSX inside the configured Vite root. The default filter excludes `node_modules` and build output, and `include`, `exclude`, or `ignoreComponents` can narrow that set further. CauseScope does not invent coordinates for dependency internals that it did not transform.
 

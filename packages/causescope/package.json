@@ -1,6 +1,6 @@
 {
   "name": "causescope",
-  "version": "1.0.0-beta.6",
+  "version": "1.0.0-beta.7",
   "description": "Click any UI. Trace the cause. A local-first React provenance inspector for Vite development.",
   "keywords": [
     "react",

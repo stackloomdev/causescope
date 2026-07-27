@@ -101,9 +101,40 @@ function isOverlayTarget(target: EventTarget | null, host: HTMLElement): boolean
   return target === host || (target instanceof Node && host.contains(target));
 }
 
+const INSPECTABLE_BOUNDARY_SELECTOR = [
+  "[data-causescope-node]",
+  "a[href]",
+  "button",
+  "input",
+  "select",
+  "textarea",
+  "label",
+  "summary",
+  "[contenteditable]:not([contenteditable='false'])",
+  "[tabindex]:not([tabindex='-1'])",
+  "[role~='button']",
+  "[role~='link']",
+  "[role~='checkbox']",
+  "[role~='radio']",
+  "[role~='switch']",
+  "[role~='tab']",
+  "[role~='menuitem']",
+  "[role~='menuitemcheckbox']",
+  "[role~='menuitemradio']",
+  "[role~='option']",
+  "[role~='combobox']",
+  "[role~='textbox']",
+  "[role~='searchbox']",
+  "[role~='scrollbar']",
+  "[role~='slider']",
+  "[role~='spinbutton']",
+  "[role~='treeitem']",
+  "[role~='separator'][tabindex]:not([tabindex='-1'])",
+].join(", ");
+
 function resolveInspectableTarget(target: EventTarget | null, host: HTMLElement): Element | null {
   if (!(target instanceof Element) || isOverlayTarget(target, host)) return null;
-  return target.closest("[data-causescope-node]") ?? target;
+  return target.closest(INSPECTABLE_BOUNDARY_SELECTOR) ?? target;
 }
 
 function targetLabel(target: Element): string {
