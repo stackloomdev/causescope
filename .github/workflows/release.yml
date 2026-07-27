@@ -125,8 +125,8 @@ jobs:
         env:
           REQUESTED_DIST_TAG: ${{ inputs.dist_tag }}
         run: |
-          VERSION="$(npm pkg get version | tr -d '\"')"
-          PUBLISHED_VERSION="$(npm view "causescope@${VERSION}" version --json | tr -d '\"')"
+          VERSION="$(npm pkg get version | tr -d '"')"
+          PUBLISHED_VERSION="$(npm view "causescope@${VERSION}" version --json | tr -d '"')"
           if [[ "${PUBLISHED_VERSION}" != "${VERSION}" ]]; then
             echo "causescope@${VERSION} is not published." >&2
             exit 1
@@ -152,7 +152,7 @@ jobs:
           REQUESTED_DIST_TAG: ${{ inputs.dist_tag }}
           VERSION: ${{ steps.package.outputs.version }}
         run: |
-          RESOLVED_VERSION="$(npm view "causescope@${REQUESTED_DIST_TAG}" version --json | tr -d '\"')"
+          RESOLVED_VERSION="$(npm view "causescope@${REQUESTED_DIST_TAG}" version --json | tr -d '"')"
           if [[ "${RESOLVED_VERSION}" != "${VERSION}" ]]; then
             echo "${REQUESTED_DIST_TAG} resolved to ${RESOLVED_VERSION}, expected ${VERSION}." >&2
             exit 1
