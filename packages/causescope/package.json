@@ -5,6 +5,7 @@
   "keywords": [
     "react",
     "vite",
+    "vite-plugin",
     "debugging",
     "devtools",
     "provenance",

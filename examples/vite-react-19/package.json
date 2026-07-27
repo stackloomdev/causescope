@@ -9,6 +9,7 @@
     "build": "tsc --noEmit && vite build",
     "capture:demo": "node --experimental-strip-types scripts/capture-demo.ts",
     "capture:inspector": "node --experimental-strip-types scripts/capture-inspector.ts",
+    "export:demo": "node --experimental-strip-types scripts/export-demo.ts",
     "test": "vitest run --passWithNoTests",
     "test:e2e": "playwright test",
     "test:e2e:firefox": "playwright test --config playwright.firefox.config.ts",
