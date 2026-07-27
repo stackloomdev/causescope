@@ -4,6 +4,14 @@ All notable changes to CauseScope will be documented here. The format follows [K
 
 ## [Unreleased]
 
+## [1.0.0-beta.6] - 2026-07-27
+
+### Fixed
+
+- Kept ordinary application interactions off the full element-inspection path by resolving event-handler source metadata through a lightweight runtime index.
+- Stopped closed inspectors from rebuilding stale selections, and coalesced bursts of open-drawer updates into one refresh per animation frame.
+- Hid optional Props with no current value from the Values panel while reporting how many unavailable entries were omitted.
+
 ## [1.0.0-beta.5] - 2026-07-27
 
 ### Fixed

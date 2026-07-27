@@ -28,6 +28,63 @@ async function setHmrFixture(page: Page, mode: "baseline" | "updated"): Promise<
   expect(result.ok, result.body).toBe(true);
 }
 
+test("keeps ordinary interactions off the full inspection path, including after closing the drawer", async ({ page }) => {
+  await page.goto("/");
+  await page.evaluate(() => {
+    const hostWindow = window as typeof window & {
+      __CAUSESCOPE__?: {
+        inspectElement: (element: Element) => unknown;
+        recordEvent: (event: { type: string; label: string; timestamp: number }) => void;
+      };
+      __CAUSESCOPE_INSPECT_CALLS__?: number;
+    };
+    const runtime = hostWindow.__CAUSESCOPE__;
+    if (!runtime) throw new Error("CauseScope runtime unavailable");
+    const inspectElement = runtime.inspectElement.bind(runtime);
+    hostWindow.__CAUSESCOPE_INSPECT_CALLS__ = 0;
+    runtime.inspectElement = (element) => {
+      hostWindow.__CAUSESCOPE_INSPECT_CALLS__ = (hostWindow.__CAUSESCOPE_INSPECT_CALLS__ ?? 0) + 1;
+      return inspectElement(element);
+    };
+  });
+
+  await page.getByLabel("Title").click();
+  expect(await page.evaluate(() => (
+    window as typeof window & { __CAUSESCOPE_INSPECT_CALLS__?: number }
+  ).__CAUSESCOPE_INSPECT_CALLS__)).toBe(0);
+
+  await beginInspect(page);
+  await page.getByText("Draft", { exact: true }).click();
+  await page.evaluate(() => {
+    const hostWindow = window as typeof window & {
+      __CAUSESCOPE__?: { recordEvent: (event: { type: string; label: string; timestamp: number }) => void };
+      __CAUSESCOPE_INSPECT_CALLS__?: number;
+    };
+    const runtime = hostWindow.__CAUSESCOPE__;
+    if (!runtime) throw new Error("CauseScope runtime unavailable");
+    hostWindow.__CAUSESCOPE_INSPECT_CALLS__ = 0;
+    for (let index = 0; index < 10; index += 1) {
+      runtime.recordEvent({ type: "test", label: `test event ${index}`, timestamp: Date.now() });
+    }
+  });
+  await page.evaluate(() => new Promise<void>((resolve) => {
+    window.requestAnimationFrame(() => window.requestAnimationFrame(() => resolve()));
+  }));
+  expect(await page.evaluate(() => (
+    window as typeof window & { __CAUSESCOPE_INSPECT_CALLS__?: number }
+  ).__CAUSESCOPE_INSPECT_CALLS__)).toBe(1);
+
+  await closeInspector(page);
+  await page.evaluate(() => {
+    (window as typeof window & { __CAUSESCOPE_INSPECT_CALLS__?: number }).__CAUSESCOPE_INSPECT_CALLS__ = 0;
+  });
+
+  await page.getByLabel("Title").click();
+  expect(await page.evaluate(() => (
+    window as typeof window & { __CAUSESCOPE_INSPECT_CALLS__?: number }
+  ).__CAUSESCOPE_INSPECT_CALLS__)).toBe(0);
+});
+
 test("opens, navigates, and closes the inspector with keyboard input only", async ({ page }) => {
   await page.goto("/");
 
