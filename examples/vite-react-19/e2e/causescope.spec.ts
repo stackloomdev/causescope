@@ -85,6 +85,51 @@ test("keeps ordinary interactions off the full inspection path, including after 
   ).__CAUSESCOPE_INSPECT_CALLS__)).toBe(0);
 });
 
+test("selects an uninstrumented interactive control before its traced wrapper", async ({ page }) => {
+  await page.goto("/granularity");
+
+  const link = page.getByRole("link", { name: "Library New Chat", exact: true });
+  await expect(link).not.toHaveAttribute("data-causescope-node");
+  expect(await link.evaluate((element) => element.closest("[data-causescope-node]")?.tagName.toLowerCase())).toBe("section");
+
+  await beginInspect(page);
+  await link.hover();
+  await expect(page.locator(".cs-highlight-label")).toHaveText("<a>");
+  const originalUrl = page.url();
+  await link.click();
+
+  const drawer = inspector(page);
+  await expect(drawer).toBeVisible();
+  await expect(drawer.locator(".cs-summary-value").nth(0)).toHaveText("a");
+  await expect(drawer.locator(".cs-summary-value").nth(2)).toHaveText("Unavailable");
+  await expect(drawer.getByRole("button", { name: "Open in editor" })).toBeDisabled();
+  expect(page.url()).toBe(originalUrl);
+  expect(await page.evaluate(() => (
+    window as typeof window & { __CAUSESCOPE_UNINSTRUMENTED_ACTIONS__?: number }
+  ).__CAUSESCOPE_UNINSTRUMENTED_ACTIONS__ ?? 0)).toBe(0);
+});
+
+test("recognizes fallback ARIA role tokens at the exact interactive boundary", async ({ page }) => {
+  await page.goto("/granularity");
+
+  const control = page.locator("[role='switch checkbox']", { hasText: "Library notifications" });
+  await expect(control).not.toHaveAttribute("data-causescope-node");
+  expect(await control.evaluate((element) => element.closest("[data-causescope-node]")?.tagName.toLowerCase())).toBe("section");
+
+  await beginInspect(page);
+  await control.hover();
+  await expect(page.locator(".cs-highlight-label")).toHaveText("<div>");
+  await control.click();
+
+  const drawer = inspector(page);
+  await expect(drawer).toBeVisible();
+  await expect(drawer.locator(".cs-summary-value").nth(0)).toHaveText("div");
+  await expect(drawer.locator(".cs-summary-value").nth(2)).toHaveText("Unavailable");
+  expect(await page.evaluate(() => (
+    window as typeof window & { __CAUSESCOPE_UNINSTRUMENTED_ACTIONS__?: number }
+  ).__CAUSESCOPE_UNINSTRUMENTED_ACTIONS__ ?? 0)).toBe(0);
+});
+
 test("opens, navigates, and closes the inspector with keyboard input only", async ({ page }) => {
   await page.goto("/");
 

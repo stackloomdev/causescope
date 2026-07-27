@@ -4,6 +4,12 @@ All notable changes to CauseScope will be documented here. The format follows [K
 
 ## [Unreleased]
 
+## [1.0.0-beta.7] - 2026-07-27
+
+### Fixed
+
+- Selected uninstrumented native and ARIA interactive controls before larger traced ancestors, while keeping unavailable dependency source locations explicit.
+
 ## [1.0.0-beta.6] - 2026-07-27
 
 ### Fixed

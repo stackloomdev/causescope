@@ -79,7 +79,14 @@ function fixtureApi(enableHmrFixture: boolean): Plugin {
 }
 
 export default defineConfig({
-  plugins: [fixtureApi(process.env.CAUSESCOPE_E2E === "1"), react(), tailwindcss(), causeScope()],
+  plugins: [
+    fixtureApi(process.env.CAUSESCOPE_E2E === "1"),
+    react(),
+    tailwindcss(),
+    causeScope({
+      exclude: ["**/node_modules/**", "**/dist/**", "**/UninstrumentedControls.tsx"],
+    }),
+  ],
   server: {
     host: "0.0.0.0",
     allowedHosts: ["terminal.local"],
