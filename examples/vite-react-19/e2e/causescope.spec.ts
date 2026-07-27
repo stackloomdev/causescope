@@ -221,6 +221,41 @@ test("keeps state and values isolated across repeated order rows", async ({ page
   await expect(inspector(page).getByRole("tab")).toHaveCount(0);
 });
 
+test("traces a blocked refund from its derived condition to the confirmed network response", async ({ page }) => {
+  await page.goto("/refund");
+  const refundButton = page.getByRole("button", { name: "Refund order" });
+  await expect(refundButton).toBeVisible();
+  await expect(refundButton).toBeDisabled();
+  await expect(page.getByText("pending", { exact: true })).toBeVisible();
+
+  await beginInspect(page);
+  await refundButton.hover();
+  await expect(page.locator(".cs-highlight-label")).toContainText("<button>");
+  await refundButton.click({ force: true });
+
+  const drawer = inspector(page);
+  await expect(drawer).toBeVisible();
+  await expect(drawer).toContainText("disabled = true");
+  await expect(drawer).toContainText("!canRefund");
+  await expect(drawer).toContainText("canRefund");
+  await expect(drawer).toContainText('order.status === "paid"');
+  await expect(drawer).toContainText("order.status");
+  await expect(drawer).toContainText('"pending"');
+  await expect(drawer).toContainText("correlated update");
+
+  const networkProof = drawer.getByRole("heading", { name: "Network response" });
+  await networkProof.scrollIntoViewIfNeeded();
+  await expect(networkProof).toBeVisible();
+  await expect(drawer).toContainText("GET");
+  await expect(drawer).toContainText("/api/orders/4821");
+  await expect(drawer).toContainText("200");
+  await expect(drawer).toContainText("response.data.order.status");
+
+  await drawer.getByRole("tab", { name: "Network" }).click();
+  await expect(drawer.getByRole("heading", { name: "Network origin" })).toBeVisible();
+  await expect(drawer).toContainText("response.data.order.status");
+});
+
 test("links Fetch, XHR, React Query, Zustand, and Storage to rendered values", async ({ page }) => {
   await page.goto("/origins");
   await expect(page.getByRole("heading", { name: "Traceable ceramic mug" })).toBeVisible();

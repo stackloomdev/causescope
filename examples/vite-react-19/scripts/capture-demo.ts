@@ -23,26 +23,27 @@ const video = page.video();
 if (!video) throw new Error("Playwright did not create a demo recording");
 
 try {
-  await page.goto(baseUrl, { waitUntil: "networkidle" });
-  await page.waitForTimeout(800);
-
-  const title = page.getByRole("textbox", { name: "Title" });
-  await title.click();
-  await title.fill("");
-  await title.pressSequentially("CauseScope Launch Mug", { delay: 55 });
-  await page.waitForTimeout(800);
-
+  await page.goto(`${baseUrl}/refund`, { waitUntil: "networkidle" });
+  const refundButton = page.getByRole("button", { name: "Refund order" });
+  await refundButton.waitFor();
+  await page.waitForTimeout(550);
   await page.getByRole("button", { name: /Inspect/ }).click();
-  await page.waitForTimeout(450);
-  await page.getByText("Changes ready", { exact: true }).click();
-  await page.waitForTimeout(2_600);
+  await page.waitForTimeout(250);
+  await refundButton.hover();
+  await page.locator(".cs-highlight-label").waitFor();
+  await page.waitForTimeout(250);
+  await refundButton.click({ force: true });
+  await page.waitForTimeout(700);
 
-  const stateTab = page.getByRole("tab", { name: "State", exact: true });
-  await stateTab.click();
-  await page.waitForTimeout(2_200);
-
-  await page.getByRole("tab", { name: "Why", exact: true }).click();
-  await page.waitForTimeout(1_400);
+  const drawer = page.getByRole("complementary", { name: "CauseScope inspector" });
+  const content = drawer.getByRole("tabpanel");
+  await content.hover();
+  for (const distance of [430, 500, 650]) {
+    await page.mouse.wheel(0, distance);
+    await page.waitForTimeout(650);
+  }
+  await drawer.getByRole("heading", { name: "Network response" }).scrollIntoViewIfNeeded();
+  await page.waitForTimeout(1_000);
 } finally {
   const saveRecording = video.saveAs(outputPath);
   await context.close();

@@ -409,6 +409,7 @@ function StateProvenance({
 
 function WhyPanel({ inspection }: { inspection: InspectionResult }): JSX.Element {
   if (inspection.expressions.length === 0) return <SourceCode inspection={inspection} />;
+  const networkEvidence = partitionNetworkRequestsByConfidence(inspection);
 
   return (
     <>
@@ -440,6 +441,9 @@ function WhyPanel({ inspection }: { inspection: InspectionResult }): JSX.Element
           hasRegisteredState={inspection.states.length > 0}
         />
       </section>
+      {networkEvidence.confirmed.length > 0
+        ? <ConfirmedNetworkEvidence inspection={inspection} requests={networkEvidence.confirmed} />
+        : null}
       <HiddenBranches expressions={inspection.expressions} />
     </>
   );
@@ -584,7 +588,50 @@ function StatePanel({ inspection }: { inspection: InspectionResult }): JSX.Eleme
   );
 }
 
-function NetworkRequestCard({ request, responsePaths }: { request: NetworkTrace; responsePaths: string[] }): JSX.Element {
+type NetworkEvidenceConfidence = "confirmed" | "possible" | "lost";
+
+interface LinkedNetworkRequest {
+  request: NetworkTrace;
+  confidence: NetworkEvidenceConfidence;
+}
+
+function linkedNetworkId(origin: InspectionResult["origins"][number]): string | undefined {
+  if (origin.kind === "network") return origin.traceId;
+  return typeof origin.metadata?.networkId === "string" ? origin.metadata.networkId : undefined;
+}
+
+export function partitionNetworkRequestsByConfidence(inspection: InspectionResult): {
+  confirmed: NetworkTrace[];
+  possible: NetworkTrace[];
+  lost: NetworkTrace[];
+  linked: LinkedNetworkRequest[];
+} {
+  const linked = inspection.networkRequests.map((request): LinkedNetworkRequest => {
+    const confidences = inspection.origins
+      .filter((origin) => linkedNetworkId(origin) === request.id)
+      .map((origin) => origin.confidence);
+    const confidence: NetworkEvidenceConfidence = confidences.includes("confirmed")
+      ? "confirmed"
+      : confidences.includes("possible") ? "possible" : "lost";
+    return { request, confidence };
+  });
+  return {
+    confirmed: linked.filter((item) => item.confidence === "confirmed").map((item) => item.request),
+    possible: linked.filter((item) => item.confidence === "possible").map((item) => item.request),
+    lost: linked.filter((item) => item.confidence === "lost").map((item) => item.request),
+    linked,
+  };
+}
+
+function NetworkRequestCard({
+  request,
+  responsePaths,
+  confidence,
+}: {
+  request: NetworkTrace;
+  responsePaths: string[];
+  confidence?: NetworkEvidenceConfidence;
+}): JSX.Element {
   const duration = request.completedAt ? `${Math.max(0, request.completedAt - request.startedAt)} ms` : "pending";
   return (
     <article class="cs-network-card">
@@ -597,6 +644,7 @@ function NetworkRequestCard({ request, responsePaths }: { request: NetworkTrace;
         <span>{request.transport.toUpperCase()}</span>
         <span>{duration}</span>
         <span>{request.responseType || "response pending"}</span>
+        {confidence ? <span>{confidence} link</span> : null}
         {request.responseBytes !== undefined ? <span>{request.responseBytes.toLocaleString()} bytes{request.truncated ? " · truncated" : ""}</span> : null}
       </div>
       {responsePaths.length > 0 ? (
@@ -610,19 +658,61 @@ function NetworkRequestCard({ request, responsePaths }: { request: NetworkTrace;
   );
 }
 
+function responsePathsForRequest(
+  inspection: InspectionResult,
+  request: NetworkTrace,
+  confidence?: NetworkEvidenceConfidence,
+): string[] {
+  return [...new Set(inspection.origins
+    .filter((origin) =>
+      origin.kind === "network"
+      && origin.traceId === request.id
+      && origin.path
+      && (!confidence || origin.confidence === confidence),
+    )
+    .map((origin) => origin.path as string))];
+}
+
+function ConfirmedNetworkEvidence({
+  inspection,
+  requests,
+}: {
+  inspection: InspectionResult;
+  requests: NetworkTrace[];
+}): JSX.Element {
+  return (
+    <section class="cs-panel cs-network-proof" aria-labelledby="cs-network-proof-heading">
+      <div class="cs-section-title">
+        <h2 id="cs-network-proof-heading">Network response</h2>
+        <span>confirmed origin</span>
+      </div>
+      <div class="cs-network-list">
+        {requests.map((request) => (
+          <NetworkRequestCard
+            request={request}
+            responsePaths={responsePathsForRequest(inspection, request, "confirmed")}
+            confidence="confirmed"
+            key={request.id}
+          />
+        ))}
+      </div>
+    </section>
+  );
+}
+
 function NetworkPanel({ inspection }: { inspection: InspectionResult }): JSX.Element {
+  const evidence = partitionNetworkRequestsByConfidence(inspection);
   return (
     <section class="cs-panel">
       <p class="cs-eyebrow">Linked requests</p>
       <h2 class="cs-panel-heading">Network origin</h2>
       {inspection.networkRequests.length > 0 ? (
         <div class="cs-network-list">
-          {inspection.networkRequests.map((request) => (
+          {evidence.linked.map(({ request, confidence }) => (
             <NetworkRequestCard
               request={request}
-              responsePaths={[...new Set(inspection.origins
-                .filter((origin) => origin.kind === "network" && origin.traceId === request.id && origin.path)
-                .map((origin) => origin.path as string))]}
+              responsePaths={responsePathsForRequest(inspection, request, confidence)}
+              confidence={confidence}
               key={request.id}
             />
           ))}
@@ -830,9 +920,10 @@ function OverlayApp({ runtime, host }: { runtime: CauseScopeRuntime; host: HTMLE
   const selectionActive = inspectMode || drawerOpen;
 
   useEffect(() => {
-    if (!drawerOpen) return;
     let refreshFrame: number | null = null;
     const unsubscribe = runtime.subscribe(() => {
+      const target = selectedElement.current;
+      if (!target?.isConnected) return;
       if (refreshFrame !== null) return;
       refreshFrame = window.requestAnimationFrame(() => {
         refreshFrame = null;
@@ -844,7 +935,7 @@ function OverlayApp({ runtime, host }: { runtime: CauseScopeRuntime; host: HTMLE
       unsubscribe();
       if (refreshFrame !== null) window.cancelAnimationFrame(refreshFrame);
     };
-  }, [drawerOpen, runtime]);
+  }, [runtime]);
 
   useEffect(() => {
     const inspect = (target: Element): void => {

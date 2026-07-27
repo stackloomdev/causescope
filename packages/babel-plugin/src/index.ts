@@ -30,6 +30,21 @@ interface StorageBindingMetadata {
   key: string;
 }
 
+interface DerivedBindingMetadata {
+  bindingIdentifier: t.Identifier;
+  initPath: NodePath<t.Expression>;
+  source: { file: string; line: number; column: number };
+  inputNamespace: string;
+  traceIdentifier?: t.Identifier;
+  condition?: t.ObjectExpression;
+  used: boolean;
+}
+
+interface DerivedConditionReference {
+  id: string;
+  condition: t.ObjectExpression;
+}
+
 interface CauseScopePluginState extends PluginPass {
   opts: CauseScopeBabelPluginOptions;
   causeScope: {
@@ -40,6 +55,7 @@ interface CauseScopePluginState extends PluginPass {
     states: Map<t.Identifier, SetterMetadata>;
     props: Map<t.Identifier, PropBindingMetadata>;
     storage: Map<t.Identifier, StorageBindingMetadata>;
+    derived: Map<t.Identifier, DerivedBindingMetadata>;
   };
 }
 
@@ -170,6 +186,147 @@ function collectStorageBindings(programPath: NodePath<t.Program>, state: CauseSc
       state.causeScope.storage.set(binding.identifier, metadata);
     },
   });
+}
+
+function isDerivedConditionExpression(node: t.Expression): boolean {
+  return (t.isUnaryExpression(node) && node.operator === "!")
+    || t.isLogicalExpression(node)
+    || t.isBinaryExpression(node)
+    || t.isConditionalExpression(node);
+}
+
+function visitReferencedIdentifiers(
+  path: NodePath<t.Expression>,
+  visit: (identifierPath: NodePath<t.Identifier>) => void,
+): void {
+  if (path.isFunctionExpression() || path.isArrowFunctionExpression()) return;
+  if (path.isIdentifier() && path.isReferencedIdentifier()) visit(path);
+  path.traverse({
+    Function(functionPath) {
+      functionPath.skip();
+    },
+    ReferencedIdentifier(identifierPath) {
+      if (identifierPath.isIdentifier()) visit(identifierPath);
+    },
+  });
+}
+
+function buildDerivedCondition(
+  metadata: DerivedBindingMetadata,
+  state: CauseScopePluginState,
+): t.ObjectExpression {
+  if (metadata.condition) return metadata.condition;
+  const dependencies = new Map<string, DerivedConditionReference>();
+  visitReferencedIdentifiers(metadata.initPath, (identifierPath) => {
+    const binding = identifierPath.scope.getBinding(identifierPath.node.name);
+    const dependency = binding ? state.causeScope.derived.get(binding.identifier) : undefined;
+    if (!dependency?.used || dependency === metadata) return;
+    // Expand one dependency level only. This preserves a useful drill-down
+    // without turning a derived-value DAG into an exponentially duplicated
+    // condition tree at every JSX use site.
+    dependencies.set(identifierPath.node.name, {
+      id: dependency.inputNamespace,
+      condition: conditionDefinitionObject(
+        dependency.initPath.node,
+        `${dependency.source.file}:${dependency.source.line}:${dependency.source.column}`,
+        new Map(),
+        dependency.inputNamespace,
+      ),
+    });
+  });
+  metadata.condition = conditionDefinitionObject(
+    metadata.initPath.node,
+    `${metadata.source.file}:${metadata.source.line}:${metadata.source.column}`,
+    dependencies,
+    metadata.inputNamespace,
+  );
+  return metadata.condition;
+}
+
+function isInstrumentedJsxExpressionContainer(path: NodePath<t.JSXExpressionContainer>): boolean {
+  const parent = path.parentPath;
+  if (parent.isJSXAttribute()) {
+    const opening = parent.parentPath;
+    return opening.isJSXOpeningElement() && isNativeElement(opening);
+  }
+  if (parent.isJSXElement()) return isNativeElement(parent.get("openingElement"));
+  return false;
+}
+
+function collectDerivedBindings(programPath: NodePath<t.Program>, state: CauseScopePluginState): void {
+  programPath.traverse({
+    VariableDeclarator(declaratorPath) {
+      if (!t.isIdentifier(declaratorPath.node.id)) return;
+      if (!declaratorPath.parentPath.isVariableDeclaration({ kind: "const" })) return;
+      const initPath = declaratorPath.get("init");
+      if (!initPath.isExpression() || !isDerivedConditionExpression(initPath.node)) return;
+      // Await and yield must remain in their original async/generator context;
+      // moving either into the synchronous trace callback produces invalid JS.
+      if (requiresOriginalFunctionContext(initPath)) return;
+      const binding = declaratorPath.scope.getBinding(declaratorPath.node.id.name);
+      if (!binding?.constant) return;
+      const source = getSource(initPath, state);
+      state.causeScope.derived.set(binding.identifier, {
+        bindingIdentifier: binding.identifier,
+        initPath,
+        source,
+        inputNamespace: stableId(
+          "cs_derived",
+          `${source.file}:${source.line}:${source.column}:${binding.identifier.name}`,
+        ),
+        used: false,
+      });
+    },
+  });
+
+  const markUsed = (metadata: DerivedBindingMetadata): void => {
+    if (metadata.used) return;
+    metadata.used = true;
+    visitReferencedIdentifiers(metadata.initPath, (identifierPath) => {
+      const binding = identifierPath.scope.getBinding(identifierPath.node.name);
+      const dependency = binding ? state.causeScope.derived.get(binding.identifier) : undefined;
+      if (dependency) markUsed(dependency);
+    });
+  };
+
+  programPath.traverse({
+    JSXExpressionContainer(containerPath) {
+      // Component props are traced as prop passes, not host expressions. Do
+      // not pay for a derivation whose evidence cannot cross that boundary.
+      if (!isInstrumentedJsxExpressionContainer(containerPath)) return;
+      const expressionPath = containerPath.get("expression");
+      if (!expressionPath.isExpression()) return;
+      visitReferencedIdentifiers(expressionPath, (identifierPath) => {
+        const binding = identifierPath.scope.getBinding(identifierPath.node.name);
+        const metadata = binding ? state.causeScope.derived.get(binding.identifier) : undefined;
+        if (metadata) markUsed(metadata);
+      });
+    },
+  });
+
+  for (const metadata of state.causeScope.derived.values()) {
+    if (!metadata.used) continue;
+    metadata.traceIdentifier = metadata.initPath.scope.generateUidIdentifier(`${metadata.bindingIdentifier.name}Derivation`);
+    buildDerivedCondition(metadata, state);
+  }
+}
+
+function derivedConditionsForExpression(
+  path: NodePath<t.Expression>,
+  state: CauseScopePluginState,
+): Map<string, DerivedConditionReference> {
+  const conditions = new Map<string, DerivedConditionReference>();
+  visitReferencedIdentifiers(path, (identifierPath) => {
+    const binding = identifierPath.scope.getBinding(identifierPath.node.name);
+    const metadata = binding ? state.causeScope.derived.get(binding.identifier) : undefined;
+    if (metadata?.used && metadata.condition) {
+      conditions.set(identifierPath.node.name, {
+        id: metadata.inputNamespace,
+        condition: metadata.condition,
+      });
+    }
+  });
+  return conditions;
 }
 
 function hasAttribute(node: t.JSXOpeningElement, name: string): boolean {
@@ -303,12 +460,14 @@ function storageOriginObject(metadata: StorageBindingMetadata): t.ObjectExpressi
 function originHintObject(input: {
   prop?: PropBindingMetadata;
   storage?: StorageBindingMetadata;
+  derived?: t.Identifier;
   originValue?: t.Expression;
   accessPath?: string;
 }): t.ObjectExpression {
   const properties: t.ObjectProperty[] = [];
   if (input.prop) properties.push(t.objectProperty(t.identifier("origin"), propOriginObject(input.prop)));
   if (input.storage) properties.push(t.objectProperty(t.identifier("origin"), storageOriginObject(input.storage)));
+  if (input.derived) properties.push(t.objectProperty(t.identifier("derived"), t.cloneNode(input.derived)));
   if (input.originValue) properties.push(t.objectProperty(t.identifier("originValue"), input.originValue));
   if (input.accessPath) properties.push(t.objectProperty(t.identifier("accessPath"), t.stringLiteral(input.accessPath)));
   return t.objectExpression(properties);
@@ -359,10 +518,17 @@ function memberWithRoot(
   return cloned;
 }
 
+function captureInputName(displayName: string, inputNamespace?: string, node?: t.Node): string {
+  if (!inputNamespace) return displayName;
+  const occurrence = node?.start ?? `${node?.loc?.start.line ?? 0}-${node?.loc?.start.column ?? 0}`;
+  return `${inputNamespace}:${occurrence}:${displayName}`;
+}
+
 function wrapCapturedMember(
   path: NodePath<t.MemberExpression | t.OptionalMemberExpression>,
   captureIdentifier: t.Identifier,
   state: CauseScopePluginState,
+  inputNamespace?: string,
 ): boolean {
   if (isMemberWriteTarget(path)) return false;
   const parent = path.parentPath;
@@ -375,10 +541,11 @@ function wrapCapturedMember(
   const propMetadata = binding ? state.causeScope.props.get(binding.identifier) : undefined;
   const storageMetadata = binding ? state.causeScope.storage.get(binding.identifier) : undefined;
   const original = t.cloneNode(path.node, true);
+  const displayName = generate(original).code;
   const originIdentifier = path.scope.generateUidIdentifier(`${member.root.name}Origin`);
   const evaluatedMember = memberWithRoot(original, originIdentifier);
   const captureArguments: t.Expression[] = [
-    t.stringLiteral(generate(original).code),
+    t.stringLiteral(captureInputName(displayName, inputNamespace, path.node)),
     evaluatedMember,
     stateMetadata ? t.stringLiteral(stateMetadata.stateId) : t.identifier("undefined"),
     originHintObject({
@@ -387,6 +554,7 @@ function wrapCapturedMember(
       originValue: t.cloneNode(originIdentifier),
       accessPath: member.accessPath,
     }),
+    ...(inputNamespace ? [t.stringLiteral(displayName)] : []),
   ];
   path.replaceWith(t.callExpression(
     t.arrowFunctionExpression(
@@ -403,12 +571,17 @@ function wrapCapturedCall(
   path: NodePath<t.CallExpression | t.OptionalCallExpression>,
   captureIdentifier: t.Identifier,
   expressionName: string,
+  inputNamespace?: string,
 ): void {
   const original = t.cloneNode(path.node, true);
-  path.replaceWith(t.callExpression(t.cloneNode(captureIdentifier), [
-    t.stringLiteral(expressionName),
+  const captureArguments: t.Expression[] = [
+    t.stringLiteral(captureInputName(expressionName, inputNamespace, path.node)),
     original,
-  ]));
+  ];
+  if (inputNamespace) {
+    captureArguments.push(t.identifier("undefined"), t.identifier("undefined"), t.stringLiteral(expressionName));
+  }
+  path.replaceWith(t.callExpression(t.cloneNode(captureIdentifier), captureArguments));
   path.skip();
 }
 
@@ -416,14 +589,15 @@ function instrumentCallArguments(
   path: NodePath<t.CallExpression | t.OptionalCallExpression>,
   captureIdentifier: t.Identifier,
   state: CauseScopePluginState,
+  inputNamespace?: string,
 ): void {
   for (const argumentPath of path.get("arguments")) {
     if (argumentPath.isSpreadElement()) {
       const spreadArgument = argumentPath.get("argument");
-      if (spreadArgument.isExpression()) instrumentExpressionInputs(spreadArgument, captureIdentifier, state);
+      if (spreadArgument.isExpression()) instrumentExpressionInputs(spreadArgument, captureIdentifier, state, inputNamespace);
       continue;
     }
-    if (argumentPath.isExpression()) instrumentExpressionInputs(argumentPath, captureIdentifier, state);
+    if (argumentPath.isExpression()) instrumentExpressionInputs(argumentPath, captureIdentifier, state, inputNamespace);
   }
 }
 
@@ -431,26 +605,35 @@ function wrapCapturedIdentifier(
   path: NodePath<t.Identifier>,
   captureIdentifier: t.Identifier,
   state: CauseScopePluginState,
+  inputNamespace?: string,
 ): void {
   if (!shouldCaptureIdentifier(path)) return;
   const original = t.cloneNode(path.node);
   const captureArguments: t.Expression[] = [
-    t.stringLiteral(original.name),
+    t.stringLiteral(captureInputName(original.name, inputNamespace, path.node)),
     original,
   ];
   const binding = path.scope.getBinding(original.name);
   const stateMetadata = binding ? state.causeScope.states.get(binding.identifier) : undefined;
   const propMetadata = binding ? state.causeScope.props.get(binding.identifier) : undefined;
   const storageMetadata = binding ? state.causeScope.storage.get(binding.identifier) : undefined;
-  if (stateMetadata || propMetadata || storageMetadata) {
+  const derivedMetadata = binding ? state.causeScope.derived.get(binding.identifier) : undefined;
+  const derivedIdentifier = derivedMetadata?.used ? derivedMetadata.traceIdentifier : undefined;
+  if (stateMetadata || propMetadata || storageMetadata || derivedIdentifier || inputNamespace) {
     captureArguments.push(stateMetadata ? t.stringLiteral(stateMetadata.stateId) : t.identifier("undefined"));
   }
-  if (propMetadata || storageMetadata) {
-    captureArguments.push(originHintObject({
-      ...(propMetadata ? { prop: propMetadata } : {}),
-      ...(storageMetadata ? { storage: storageMetadata } : {}),
-    }));
+  if (propMetadata || storageMetadata || derivedIdentifier || inputNamespace) {
+    captureArguments.push(
+      propMetadata || storageMetadata || derivedIdentifier
+        ? originHintObject({
+          ...(propMetadata ? { prop: propMetadata } : {}),
+          ...(storageMetadata ? { storage: storageMetadata } : {}),
+          ...(derivedIdentifier ? { derived: derivedIdentifier } : {}),
+        })
+        : t.identifier("undefined"),
+    );
   }
+  if (inputNamespace) captureArguments.push(t.stringLiteral(original.name));
   path.replaceWith(t.callExpression(t.cloneNode(captureIdentifier), captureArguments));
   path.skip();
 }
@@ -459,19 +642,20 @@ function instrumentExpressionInputs(
   expressionPath: NodePath<t.Expression>,
   captureIdentifier: t.Identifier,
   state: CauseScopePluginState,
+  inputNamespace?: string,
 ): void {
   if (expressionPath.isIdentifier()) {
-    wrapCapturedIdentifier(expressionPath, captureIdentifier, state);
+    wrapCapturedIdentifier(expressionPath, captureIdentifier, state, inputNamespace);
     return;
   }
   if (expressionPath.isMemberExpression() || expressionPath.isOptionalMemberExpression()) {
-    wrapCapturedMember(expressionPath, captureIdentifier, state);
+    wrapCapturedMember(expressionPath, captureIdentifier, state, inputNamespace);
     return;
   }
   if (expressionPath.isCallExpression() || expressionPath.isOptionalCallExpression()) {
     const expressionName = generate(expressionPath.node).code;
-    instrumentCallArguments(expressionPath, captureIdentifier, state);
-    wrapCapturedCall(expressionPath, captureIdentifier, expressionName);
+    instrumentCallArguments(expressionPath, captureIdentifier, state, inputNamespace);
+    wrapCapturedCall(expressionPath, captureIdentifier, expressionName, inputNamespace);
     return;
   }
   if (expressionPath.isFunctionExpression() || expressionPath.isArrowFunctionExpression()) return;
@@ -491,17 +675,22 @@ function instrumentExpressionInputs(
       fragmentPath.skip();
     },
     MemberExpression(memberPath) {
-      wrapCapturedMember(memberPath, captureIdentifier, state);
+      wrapCapturedMember(memberPath, captureIdentifier, state, inputNamespace);
     },
     OptionalMemberExpression(memberPath) {
-      wrapCapturedMember(memberPath, captureIdentifier, state);
+      wrapCapturedMember(memberPath, captureIdentifier, state, inputNamespace);
     },
     CallExpression: {
       enter(callPath) {
         callExpressionNames.set(callPath.node, generate(callPath.node).code);
       },
       exit(callPath) {
-        wrapCapturedCall(callPath, captureIdentifier, callExpressionNames.get(callPath.node) ?? generate(callPath.node).code);
+        wrapCapturedCall(
+          callPath,
+          captureIdentifier,
+          callExpressionNames.get(callPath.node) ?? generate(callPath.node).code,
+          inputNamespace,
+        );
       },
     },
     OptionalCallExpression: {
@@ -509,12 +698,17 @@ function instrumentExpressionInputs(
         callExpressionNames.set(callPath.node, generate(callPath.node).code);
       },
       exit(callPath) {
-        wrapCapturedCall(callPath, captureIdentifier, callExpressionNames.get(callPath.node) ?? generate(callPath.node).code);
+        wrapCapturedCall(
+          callPath,
+          captureIdentifier,
+          callExpressionNames.get(callPath.node) ?? generate(callPath.node).code,
+          inputNamespace,
+        );
       },
     },
     ReferencedIdentifier(identifierPath) {
       if (!identifierPath.isIdentifier()) return;
-      wrapCapturedIdentifier(identifierPath, captureIdentifier, state);
+      wrapCapturedIdentifier(identifierPath, captureIdentifier, state, inputNamespace);
     },
   });
 }
@@ -587,7 +781,13 @@ function literalValueNode(node: t.Expression): t.Expression | null {
   return null;
 }
 
-function conditionDefinitionObject(node: t.Expression, seed: string): t.ObjectExpression {
+function conditionDefinitionObject(
+  node: t.Expression,
+  seed: string,
+  derivedConditions: Map<string, DerivedConditionReference> = new Map(),
+  inputNamespace?: string,
+  expandedDerivations: Set<string> = new Set(),
+): t.ObjectExpression {
   const expression = generate(node).code;
   const type = conditionType(node);
   const properties: t.ObjectProperty[] = [
@@ -599,20 +799,35 @@ function conditionDefinitionObject(node: t.Expression, seed: string): t.ObjectEx
     properties.push(t.objectProperty(t.identifier("operator"), t.stringLiteral(node.operator)));
   }
   if (t.isIdentifier(node) || t.isMemberExpression(node) || t.isOptionalMemberExpression(node) || t.isCallExpression(node) || t.isOptionalCallExpression(node)) {
-    properties.push(t.objectProperty(t.identifier("inputName"), t.stringLiteral(expression)));
+    properties.push(t.objectProperty(
+      t.identifier("inputName"),
+      t.stringLiteral(captureInputName(expression, inputNamespace, node)),
+    ));
   }
   const literal = literalValueNode(node);
   if (literal) properties.push(t.objectProperty(t.identifier("literalValue"), literal));
 
   let children: t.Expression[] = [];
-  if (t.isUnaryExpression(node) && t.isExpression(node.argument)) {
-    children = [conditionDefinitionObject(node.argument, seed)];
+  if (t.isIdentifier(node) && derivedConditions.has(node.name)) {
+    const derived = derivedConditions.get(node.name);
+    if (derived && !expandedDerivations.has(derived.id)) {
+      expandedDerivations.add(derived.id);
+      children = [t.cloneNode(derived.condition, true)];
+    }
+  } else if (t.isUnaryExpression(node) && t.isExpression(node.argument)) {
+    children = [conditionDefinitionObject(node.argument, seed, derivedConditions, inputNamespace, expandedDerivations)];
   } else if (t.isLogicalExpression(node) || t.isBinaryExpression(node)) {
-    const left = t.isExpression(node.left) ? conditionDefinitionObject(node.left, seed) : null;
-    const right = t.isExpression(node.right) ? conditionDefinitionObject(node.right, seed) : null;
+    const left = t.isExpression(node.left)
+      ? conditionDefinitionObject(node.left, seed, derivedConditions, inputNamespace, expandedDerivations)
+      : null;
+    const right = t.isExpression(node.right)
+      ? conditionDefinitionObject(node.right, seed, derivedConditions, inputNamespace, expandedDerivations)
+      : null;
     children = [left, right].filter((child): child is t.ObjectExpression => Boolean(child));
   } else if (t.isConditionalExpression(node)) {
-    children = [node.test, node.consequent, node.alternate].map((child) => conditionDefinitionObject(child, seed));
+    children = [node.test, node.consequent, node.alternate].map((child) =>
+      conditionDefinitionObject(child, seed, derivedConditions, inputNamespace, expandedDerivations),
+    );
   }
   if (children.length > 0) properties.push(t.objectProperty(t.identifier("children"), t.arrayExpression(children)));
   return t.objectExpression(properties);
@@ -707,9 +922,10 @@ function instrumentJsxExpression(
   const renderMetadata = conditionalRenderMetadata(originalExpression);
   const conditionExpression = renderMetadata?.condition ?? originalExpression;
   if (supportsConditionTree(conditionExpression)) {
+    const derivedConditions = derivedConditionsForExpression(expressionPath, state);
     metadataProperties.push(t.objectProperty(
       t.identifier("condition"),
-      conditionDefinitionObject(conditionExpression, `${source.file}:${source.line}:${source.column}`),
+      conditionDefinitionObject(conditionExpression, `${source.file}:${source.line}:${source.column}`, derivedConditions),
     ));
   }
   if (renderMetadata) {
@@ -949,6 +1165,39 @@ function instrumentComponentProps(path: NodePath<t.JSXOpeningElement>, state: Ca
   }
 }
 
+function instrumentDerivedBinding(
+  path: NodePath<t.VariableDeclarator>,
+  state: CauseScopePluginState,
+): void {
+  if (!t.isIdentifier(path.node.id)) return;
+  const binding = path.scope.getBinding(path.node.id.name);
+  const metadata = binding ? state.causeScope.derived.get(binding.identifier) : undefined;
+  const runtimeIdentifier = state.causeScope.runtimeIdentifier;
+  const traceIdentifier = metadata?.traceIdentifier;
+  const condition = metadata?.condition;
+  if (!metadata?.used || !runtimeIdentifier || !traceIdentifier || !condition) return;
+  const initPath = path.get("init");
+  if (!initPath.isExpression()) return;
+
+  const captureIdentifier = initPath.scope.generateUidIdentifier("causeScopeDerivedCapture");
+  instrumentExpressionInputs(initPath, captureIdentifier, state, metadata.inputNamespace);
+  const instrumentedExpression = t.cloneNode(initPath.node, true);
+  const traceCall = t.callExpression(
+    t.memberExpression(t.cloneNode(runtimeIdentifier), t.identifier("traceDerived")),
+    [t.objectExpression([
+      t.objectProperty(t.identifier("condition"), t.cloneNode(condition, true)),
+      t.objectProperty(
+        t.identifier("evaluate"),
+        t.arrowFunctionExpression([captureIdentifier], instrumentedExpression),
+      ),
+    ])],
+  );
+
+  path.insertBefore(t.variableDeclarator(t.cloneNode(traceIdentifier), traceCall));
+  initPath.replaceWith(t.memberExpression(t.cloneNode(traceIdentifier), t.identifier("value")));
+  state.causeScope.needsRuntime = true;
+}
+
 export default function causeScopeBabelPlugin(): PluginObj<CauseScopePluginState> {
   return {
     name: "causescope-instrumentation",
@@ -960,6 +1209,7 @@ export default function causeScopeBabelPlugin(): PluginObj<CauseScopePluginState
         states: new Map<t.Identifier, SetterMetadata>(),
         props: new Map<t.Identifier, PropBindingMetadata>(),
         storage: new Map<t.Identifier, StorageBindingMetadata>(),
+        derived: new Map<t.Identifier, DerivedBindingMetadata>(),
       };
     },
     visitor: {
@@ -969,6 +1219,7 @@ export default function causeScopeBabelPlugin(): PluginObj<CauseScopePluginState
           collectStateSetters(path, state);
           collectPropBindings(path, state);
           collectStorageBindings(path, state);
+          collectDerivedBindings(path, state);
         },
         exit(path, state) {
           if (!state.causeScope.needsRuntime) return;
@@ -985,6 +1236,10 @@ export default function causeScopeBabelPlugin(): PluginObj<CauseScopePluginState
 
         path.insertAfter(registrations.map((metadata) => createStateRegistration(runtimeIdentifier, metadata)));
         state.causeScope.needsRuntime = true;
+      },
+
+      VariableDeclarator(path, state) {
+        instrumentDerivedBinding(path, state);
       },
 
       CallExpression(path, state) {

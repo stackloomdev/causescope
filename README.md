@@ -16,6 +16,9 @@ The local-first evidence inspector for React. Select an ordinary page element an
 
 </div>
 
+> [!IMPORTANT]
+> **Vite-first today.** CauseScope currently supports React 18/19 applications on Vite 5–8. Next.js is not supported yet; the bounded Client Component feasibility track and its release gates are explicit in the [roadmap](ROADMAP.md#nextjs-feasibility).
+
 ![CauseScope tracing a React element from rendered UI to source and live state](docs/assets/causescope-demo.gif)
 
 ## The answer behind the symptom

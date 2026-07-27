@@ -607,6 +607,11 @@ export const overlayStyles = `
   .cs-network-card p { margin: 0; color: var(--cs-faint); font-size: 10px; line-height: 1.5; }
 
   .cs-network-list { display: grid; gap: 10px; }
+  .cs-network-proof {
+    margin: 0 22px 22px;
+    padding: 18px 0 0;
+    border-top: 1px solid var(--cs-border);
+  }
   .cs-network-title { justify-content: flex-start; }
   .cs-network-title strong { color: var(--cs-accent); font-size: 11px; }
   .cs-network-title code {

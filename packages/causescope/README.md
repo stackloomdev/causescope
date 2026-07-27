@@ -4,6 +4,8 @@
 
 CauseScope is a local-first evidence inspector for React and Vite. It connects a selected DOM element to its exact TSX, live expression values, deciding conditions, state transitions, props, network requests, React Query data, Zustand stores, and browser storage.
 
+> **Vite-first:** React 18/19 on Vite 5–8 is supported today. Next.js is not supported yet; its Client Component feasibility track is documented in the repository roadmap.
+
 ```bash
 pnpm add -D causescope@beta
 ```

@@ -16,4 +16,7 @@ export default defineConfig({
   splitting: true,
   noExternal: [/^@causescope\//],
   external: ["vite"],
+  esbuildOptions(options) {
+    options.minifyWhitespace = true;
+  },
 });

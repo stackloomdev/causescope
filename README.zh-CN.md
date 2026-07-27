@@ -16,6 +16,9 @@
 
 </div>
 
+> [!IMPORTANT]
+> **当前以 Vite 为先。** CauseScope 目前支持运行在 Vite 5–8 上的 React 18/19 应用，尚未支持 Next.js；针对 Client Components 的可行性范围与发布门槛已明确写入[路线图](ROADMAP.md#nextjs-feasibility)。
+
 ![CauseScope 从 React 页面元素追踪到源码与实时状态](docs/assets/causescope-demo.gif)
 
 ## 找到表象背后的答案
