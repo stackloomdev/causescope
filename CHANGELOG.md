@@ -4,6 +4,12 @@ All notable changes to CauseScope will be documented here. The format follows [K
 
 ## [Unreleased]
 
+## [1.0.0-beta.5] - 2026-07-27
+
+### Fixed
+
+- Prevented JSX expression instrumentation from rewriting qualified TypeScript type names such as `React.CSSProperties`, while keeping runtime values inside assertions traceable.
+
 ## [1.0.0-beta.4] - 2026-07-26
 
 ### Added
