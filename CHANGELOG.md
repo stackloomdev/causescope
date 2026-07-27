@@ -4,6 +4,10 @@ All notable changes to CauseScope will be documented here. The format follows [K
 
 ## [Unreleased]
 
+### Changed
+
+- Reframed the refund demo around the selected control and inspector evidence, with stable source and network holds that remain readable at README and social-feed sizes.
+
 ## [1.0.0-beta.9] - 2026-07-28
 
 ### Added

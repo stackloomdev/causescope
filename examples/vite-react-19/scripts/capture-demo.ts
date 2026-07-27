@@ -54,14 +54,14 @@ try {
   await page.locator(".cs-highlight-label").waitFor();
   await page.waitForTimeout(250);
   await refundButton.click({ force: true });
-  await page.waitForTimeout(700);
+  await page.waitForTimeout(1_800);
 
   const drawer = page.getByRole("complementary", { name: "CauseScope inspector" });
   const content = drawer.getByRole("tabpanel");
   await content.evaluate(async (element) => {
     const startTop = element.scrollTop;
     const targetTop = Math.max(0, element.scrollHeight - element.clientHeight);
-    const duration = 1_600;
+    const duration = 2_200;
 
     await new Promise<void>((resolveScroll) => {
       const startTime = performance.now();
@@ -78,7 +78,7 @@ try {
     });
   });
   await drawer.getByText("Response field", { exact: true }).scrollIntoViewIfNeeded();
-  await page.waitForTimeout(1_200);
+  await page.waitForTimeout(2_400);
 } finally {
   const saveRecording = video.saveAs(outputPath);
   await context.close();
