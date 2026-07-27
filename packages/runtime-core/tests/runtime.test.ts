@@ -1,6 +1,7 @@
 import { describe, expect, it, vi } from "vitest";
+import type { ConditionDefinition } from "@causescope/shared";
 import { CauseScopeRuntimeImpl } from "../src/index";
-import { mergeRedaction, redactHeaders, redactUrl, serializeValue } from "../src/serialization";
+import { isSensitiveKey, mergeRedaction, redactHeaders, redactUrl, serializeValue } from "../src/serialization";
 
 const source = { file: "src/ProductEditor.tsx", line: 20, column: 7 };
 
@@ -69,6 +70,9 @@ describe("CauseScopeRuntimeImpl", () => {
     expect(redactUrl("/api?accessToken=one&client_secret=two&tokenCount=3", redaction)).toBe(
       "/api?accessToken=%5BREDACTED%5D&client_secret=%5BREDACTED%5D&tokenCount=3",
     );
+    expect(isSensitiveKey("account.secret.value", redaction.objectKeys)).toBe(true);
+    expect(isSensitiveKey('account["client_secret"].value', redaction.objectKeys)).toBe(true);
+    expect(isSensitiveKey("account.tokenCount.value", redaction.objectKeys)).toBe(false);
   });
 
   it("serializes undefined with an explicit JSON-safe tag", () => {
@@ -429,6 +433,80 @@ describe("CauseScopeRuntimeImpl", () => {
       inputs: {},
       traceMode: "selected-instance-result",
     });
+  });
+
+  it("keeps repeated host-prop disambiguation redacted for a sensitive derived result", () => {
+    const runtime = new CauseScopeRuntimeImpl();
+    const secret = "repeated-derived-secret";
+    const renderedValues = [secret, "Public row"] as const;
+    type RowElement = {
+      tagName: string;
+      textContent: string;
+      ownerDocument: { querySelectorAll: () => RowElement[] };
+      reactProps: { children: string };
+      getAttribute: (name: string) => string | null;
+    };
+    let firstElement: RowElement;
+    let secondElement: RowElement;
+    const ownerDocument = { querySelectorAll: () => [firstElement, secondElement] };
+    const createElement = (children: string): RowElement => ({
+      tagName: "SPAN",
+      textContent: children,
+      ownerDocument,
+      reactProps: { children },
+      getAttribute: (name) => name === "data-causescope-node" ? "cs_node_private_row" : null,
+    });
+    firstElement = createElement(renderedValues[0]);
+    secondElement = createElement(renderedValues[1]);
+    runtime.setReactAdapter({
+      findFiberFromElement: (element) => element,
+      getParentFiber: () => null,
+      getComponentName: () => "PrivateRow",
+      getCurrentProps: (fiber) => (fiber as { reactProps: unknown }).reactProps,
+      getComponentStack: () => ["PrivateRow"],
+    });
+    const publicInputName = "cs_private_row:publicName";
+    const secretInputName = "cs_private_row:account.secret.value";
+    const privateRule: ConditionDefinition = {
+      id: "private-row-rule",
+      type: "logical",
+      expression: "publicName || account.secret.value",
+      operator: "||",
+      children: [
+        { id: "private-row-public", type: "identifier", expression: "publicName", inputName: publicInputName },
+        { id: "private-row-secret", type: "member", expression: "account.secret.value", inputName: secretInputName },
+      ],
+    };
+    for (const publicName of ["", renderedValues[1]]) {
+      const derivation = runtime.traceDerived({
+        condition: privateRule,
+        evaluate: (capture) => capture(publicInputName, publicName, undefined, undefined, "publicName")
+          || capture(secretInputName, secret, undefined, undefined, "account.secret.value"),
+      });
+      runtime.traceExpression({
+        metadata: {
+          id: "cs_expr_private_row",
+          nodeId: "cs_node_private_row",
+          kind: "children",
+          property: "children",
+          expression: "display",
+          source,
+          instanceBinding: "host-prop",
+        },
+        evaluate: (capture) => capture("display", derivation.value, undefined, { derived: derivation } as never),
+      });
+    }
+
+    for (const element of [firstElement, secondElement]) {
+      const inspection = runtime.inspectElement(element as unknown as Element);
+      expect(inspection.element.label).toBe("[REDACTED]");
+      expect(inspection.expressions[0]).toMatchObject({
+        result: "[REDACTED]",
+        traceMode: "selected-instance-result",
+      });
+      const exported = JSON.stringify(runtime.exportTrace(inspection));
+      expect(exported).not.toContain(secret);
+    }
   });
 
   it("does not reuse the last row origin for a different repeated instance", () => {
@@ -1241,6 +1319,574 @@ describe("CauseScopeRuntimeImpl", () => {
       expression: "isPublishing",
       evaluated: false,
       shortCircuited: true,
+    });
+  });
+
+  it("merges a local derivation into the consuming JSX condition", () => {
+    const runtime = new CauseScopeRuntimeImpl();
+    const order = { status: "pending" };
+    const derivedInputName = "cs_derived_refund:order.status";
+    const refundRule: ConditionDefinition = {
+      id: "refund-rule",
+      type: "binary",
+      expression: 'order.status === "paid"',
+      operator: "===",
+      children: [
+        { id: "refund-status", type: "member", expression: "order.status", inputName: derivedInputName },
+        { id: "refund-paid", type: "literal", expression: '"paid"', literalValue: "paid" },
+      ],
+    };
+    runtime.registerValueOrigin(order, {
+      kind: "network",
+      confidence: "confirmed",
+      label: "GET /api/orders/4821",
+      path: "response.data.order",
+      traceId: "request-4821",
+    }, true);
+    const derivation = runtime.traceDerived({
+      condition: refundRule,
+      evaluate: (capture) => capture(derivedInputName, order.status, "cs_state_order", {
+        originValue: order,
+        accessPath: "status",
+      }, "order.status") === "paid",
+    });
+    runtime.traceExpression({
+      metadata: {
+        id: "cs_expr_refund",
+        nodeId: "cs_node_refund",
+        kind: "attribute",
+        property: "disabled",
+        expression: "!canRefund",
+        source,
+        condition: {
+          id: "refund-root",
+          type: "unary",
+          expression: "!canRefund",
+          operator: "!",
+          children: [{
+            id: "refund-derived",
+            type: "identifier",
+            expression: "canRefund",
+            inputName: "canRefund",
+            children: [refundRule],
+          }],
+        },
+      },
+      evaluate: (capture) => !capture("canRefund", derivation.value, undefined, { derived: derivation } as never),
+    });
+
+    const inspection = runtime.inspectElement({
+      tagName: "BUTTON",
+      textContent: "Refund order",
+      getAttribute: (name: string) => name === "data-causescope-node" ? "cs_node_refund" : null,
+    } as unknown as Element);
+    const expression = inspection.expressions[0];
+    expect(expression?.inputs).toEqual({ "order.status": "pending", canRefund: false });
+    expect(expression?.inputStateIds).toEqual({ "order.status": "cs_state_order" });
+    expect(expression?.inputOrigins["order.status"]?.[0]).toMatchObject({
+      kind: "network",
+      path: "response.data.order.status",
+      traceId: "request-4821",
+    });
+    expect(expression?.conditionEvaluation?.children?.[0]?.children?.[0]).toMatchObject({
+      expression: 'order.status === "paid"',
+      value: false,
+      children: [
+        expect.objectContaining({ expression: "order.status", value: "pending" }),
+        expect.objectContaining({ expression: '"paid"', value: "paid" }),
+      ],
+    });
+  });
+
+  it("does not replay coercion while explaining a derived condition", () => {
+    const runtime = new CauseScopeRuntimeImpl();
+    let coercions = 0;
+    const token = {
+      [Symbol.toPrimitive]() {
+        coercions += 1;
+        return 1;
+      },
+    };
+    const condition: ConditionDefinition = {
+      id: "coercion-rule",
+      type: "binary",
+      expression: "token > 0",
+      operator: ">",
+      children: [
+        { id: "coercion-token", type: "identifier", expression: "token", inputName: "cs_coercion:token" },
+        { id: "coercion-zero", type: "literal", expression: "0", literalValue: 0 },
+      ],
+    };
+    const derivation = runtime.traceDerived({
+      condition,
+      evaluate: (capture) => (capture("cs_coercion:token", token, undefined, undefined, "token") as unknown as number) > 0,
+    });
+    expect(coercions).toBe(1);
+
+    runtime.traceExpression({
+      metadata: {
+        id: "cs_expr_coercion",
+        nodeId: "cs_node_coercion",
+        kind: "attribute",
+        property: "disabled",
+        expression: "!allowed",
+        source,
+        condition: {
+          id: "coercion-consumer",
+          type: "unary",
+          expression: "!allowed",
+          operator: "!",
+          children: [{
+            id: "coercion-allowed",
+            type: "identifier",
+            expression: "allowed",
+            inputName: "allowed",
+            children: [condition],
+          }],
+        },
+      },
+      evaluate: (capture) => !capture("allowed", derivation.value, undefined, { derived: derivation } as never),
+    });
+
+    expect(coercions).toBe(1);
+  });
+
+  it("uses the observed result when a derived binary operator is not safely replayable", () => {
+    const runtime = new CauseScopeRuntimeImpl();
+    const condition: ConditionDefinition = {
+      id: "arithmetic-rule",
+      type: "binary",
+      expression: "count + 1 > 2",
+      operator: ">",
+      children: [
+        {
+          id: "arithmetic-sum",
+          type: "binary",
+          expression: "count + 1",
+          operator: "+",
+          children: [
+            { id: "arithmetic-count", type: "identifier", expression: "count", inputName: "cs_arithmetic:count" },
+            { id: "arithmetic-one", type: "literal", expression: "1", literalValue: 1 },
+          ],
+        },
+        { id: "arithmetic-two", type: "literal", expression: "2", literalValue: 2 },
+      ],
+    };
+    const derivation = runtime.traceDerived({
+      condition,
+      evaluate: (capture) => capture("cs_arithmetic:count", 2, undefined, undefined, "count") + 1 > 2,
+    });
+
+    expect(derivation.conditionEvaluation).toMatchObject({ evaluated: true, value: true });
+    expect(derivation.conditionEvaluation?.children?.[0]).toMatchObject({
+      expression: "count + 1",
+      evaluated: false,
+    });
+  });
+
+  it("preserves derived short circuits and keeps repeated derivation chains bounded", () => {
+    const runtime = new CauseScopeRuntimeImpl();
+    const fallbackRule: ConditionDefinition = {
+      id: "fallback-rule",
+      type: "logical",
+      expression: 'flag || "fallback"',
+      operator: "||",
+      children: [
+        { id: "fallback-flag", type: "identifier", expression: "flag", inputName: "cs_fallback:flag" },
+        { id: "fallback-value", type: "literal", expression: '"fallback"', literalValue: "fallback" },
+      ],
+    };
+    const fallback = runtime.traceDerived({
+      condition: fallbackRule,
+      evaluate: (capture) => capture("cs_fallback:flag", true, undefined, undefined, "flag") || "fallback",
+    });
+    expect(fallback.conditionEvaluation?.children?.[1]).toMatchObject({
+      evaluated: false,
+      shortCircuited: true,
+    });
+
+    let previous = runtime.traceDerived({
+      condition: { id: "chain-seed", type: "identifier", expression: "seed", inputName: "cs_chain_seed:seed" },
+      evaluate: (capture) => capture("cs_chain_seed:seed", false, undefined, undefined, "seed"),
+    });
+    for (let depth = 1; depth <= 14; depth += 1) {
+      const prior = previous;
+      const inputName = `cs_chain_${depth}:previous`;
+      const condition: ConditionDefinition = {
+        id: `chain-${depth}`,
+        type: "logical",
+        expression: "previous && previous",
+        operator: "&&",
+        children: [
+          { id: `chain-${depth}-left`, type: "identifier", expression: "previous", inputName },
+          { id: `chain-${depth}-right`, type: "identifier", expression: "previous", inputName },
+        ],
+      };
+      previous = runtime.traceDerived({
+        condition,
+        evaluate: (capture) => capture(inputName, prior.value, undefined, { derived: prior } as never)
+          && capture(inputName, prior.value, undefined, { derived: prior } as never),
+      });
+    }
+    runtime.traceExpression({
+      metadata: {
+        id: "cs_expr_bounded_chain",
+        nodeId: "cs_node_bounded_chain",
+        kind: "attribute",
+        property: "disabled",
+        expression: "previous",
+        source,
+        condition: { id: "chain-consumer", type: "identifier", expression: "previous", inputName: "previous" },
+      },
+      evaluate: (capture) => capture("previous", previous.value, undefined, { derived: previous } as never),
+    });
+    const inspection = runtime.inspectElement({
+      tagName: "BUTTON",
+      textContent: "Continue",
+      getAttribute: (name: string) => name === "data-causescope-node" ? "cs_node_bounded_chain" : null,
+    } as unknown as Element);
+    expect(JSON.stringify(inspection.expressions[0]?.conditionEvaluation).length).toBeLessThan(20_000);
+    expect(JSON.stringify(runtime.exportTrace(inspection)).length).toBeLessThan(30_000);
+  });
+
+  it("keeps separate occurrences when the same derived getter changes between reads", () => {
+    const runtime = new CauseScopeRuntimeImpl();
+    let reads = 0;
+    const record = {
+      get ready() {
+        reads += 1;
+        return reads === 1;
+      },
+    };
+    const leftName = "cs_getter:1:record.ready";
+    const rightName = "cs_getter:2:record.ready";
+    const condition: ConditionDefinition = {
+      id: "getter-rule",
+      type: "logical",
+      expression: "record.ready && record.ready",
+      operator: "&&",
+      children: [
+        { id: "getter-left", type: "member", expression: "record.ready", inputName: leftName },
+        { id: "getter-right", type: "member", expression: "record.ready", inputName: rightName },
+      ],
+    };
+    const derivation = runtime.traceDerived({
+      condition,
+      evaluate: (capture) => capture(leftName, record.ready, undefined, undefined, "record.ready")
+        && capture(rightName, record.ready, undefined, undefined, "record.ready"),
+    });
+
+    expect(reads).toBe(2);
+    expect(derivation.value).toBe(false);
+    expect(derivation.conditionEvaluation?.children).toMatchObject([
+      { evaluated: true, value: true },
+      { evaluated: true, value: false },
+    ]);
+  });
+
+  it("bounds a diamond-shaped derivation graph with distinct aliases", () => {
+    const runtime = new CauseScopeRuntimeImpl();
+    let left = runtime.traceDerived({
+      condition: { id: "diamond-left-seed", type: "identifier", expression: "leftSeed", inputName: "cs_diamond:leftSeed" },
+      evaluate: (capture) => capture("cs_diamond:leftSeed", false, undefined, undefined, "leftSeed"),
+    });
+    let right = runtime.traceDerived({
+      condition: { id: "diamond-right-seed", type: "identifier", expression: "rightSeed", inputName: "cs_diamond:rightSeed" },
+      evaluate: (capture) => capture("cs_diamond:rightSeed", false, undefined, undefined, "rightSeed"),
+    });
+
+    for (let depth = 1; depth <= 12; depth += 1) {
+      const previousLeft = left;
+      const previousRight = right;
+      const deriveBranch = (branch: "left" | "right") => {
+        const leftName = `cs_diamond_${depth}_${branch}:previousLeft`;
+        const rightName = `cs_diamond_${depth}_${branch}:previousRight`;
+        return runtime.traceDerived({
+          condition: {
+            id: `diamond-${depth}-${branch}`,
+            type: "logical",
+            expression: "previousLeft || previousRight",
+            operator: "||",
+            children: [
+              { id: `diamond-${depth}-${branch}-left`, type: "identifier", expression: "previousLeft", inputName: leftName },
+              { id: `diamond-${depth}-${branch}-right`, type: "identifier", expression: "previousRight", inputName: rightName },
+            ],
+          },
+          evaluate: (capture) => capture(leftName, previousLeft.value, undefined, { derived: previousLeft } as never)
+            || capture(rightName, previousRight.value, undefined, { derived: previousRight } as never),
+        });
+      };
+      left = deriveBranch("left");
+      right = deriveBranch("right");
+    }
+
+    runtime.traceExpression({
+      metadata: {
+        id: "cs_expr_diamond",
+        nodeId: "cs_node_diamond",
+        kind: "attribute",
+        property: "disabled",
+        expression: "left || right",
+        source,
+        condition: {
+          id: "diamond-consumer",
+          type: "logical",
+          expression: "left || right",
+          operator: "||",
+          children: [
+            { id: "diamond-consumer-left", type: "identifier", expression: "left", inputName: "left" },
+            { id: "diamond-consumer-right", type: "identifier", expression: "right", inputName: "right" },
+          ],
+        },
+      },
+      evaluate: (capture) => capture("left", left.value, undefined, { derived: left } as never)
+        || capture("right", right.value, undefined, { derived: right } as never),
+    });
+    const inspection = runtime.inspectElement({
+      tagName: "BUTTON",
+      textContent: "Continue",
+      getAttribute: (name: string) => name === "data-causescope-node" ? "cs_node_diamond" : null,
+    } as unknown as Element);
+    expect(JSON.stringify(inspection.expressions[0]?.conditionEvaluation).length).toBeLessThan(80_000);
+    expect(JSON.stringify(runtime.exportTrace(inspection)).length).toBeLessThan(100_000);
+  });
+
+  it("keeps shadowed derived inputs and their origins isolated", () => {
+    const runtime = new CauseScopeRuntimeImpl();
+    const outerOrder = { status: "pending" };
+    const innerOrder = { status: "paid" };
+    runtime.registerValueOrigin(outerOrder, {
+      kind: "network",
+      confidence: "confirmed",
+      label: "GET /api/orders/outer",
+      path: "response.data.order",
+      traceId: "request-outer",
+    }, true);
+    runtime.registerValueOrigin(innerOrder, {
+      kind: "network",
+      confidence: "confirmed",
+      label: "GET /api/orders/inner",
+      path: "response.data.order",
+      traceId: "request-inner",
+    }, true);
+    const rule = (id: string, inputName: string): ConditionDefinition => ({
+      id,
+      type: "binary",
+      expression: 'outerStatus === "paid"',
+      operator: "===",
+      children: [
+        { id: `${id}-status`, type: "identifier", expression: "outerStatus", inputName },
+        { id: `${id}-paid`, type: "literal", expression: '"paid"', literalValue: "paid" },
+      ],
+    });
+    const outerRule = rule("outer-rule", "cs_outer:outerStatus");
+    const innerRule = rule("inner-rule", "cs_inner:outerStatus");
+    const outer = runtime.traceDerived({
+      condition: outerRule,
+      evaluate: (capture) => capture("cs_outer:outerStatus", outerOrder.status, undefined, {
+        originValue: outerOrder,
+        accessPath: "status",
+      }, "outerStatus") === "paid",
+    });
+    const inner = runtime.traceDerived({
+      condition: innerRule,
+      evaluate: (capture) => capture("cs_inner:outerStatus", innerOrder.status, undefined, {
+        originValue: innerOrder,
+        accessPath: "status",
+      }, "outerStatus") === "paid",
+    });
+    runtime.traceExpression({
+      metadata: {
+        id: "cs_expr_shadowed",
+        nodeId: "cs_node_shadowed",
+        kind: "attribute",
+        property: "disabled",
+        expression: "outerAllowed || innerAllowed",
+        source,
+        condition: {
+          id: "shadowed-root",
+          type: "logical",
+          expression: "outerAllowed || innerAllowed",
+          operator: "||",
+          children: [
+            { id: "outer-allowed", type: "identifier", expression: "outerAllowed", inputName: "outerAllowed", children: [outerRule] },
+            { id: "inner-allowed", type: "identifier", expression: "innerAllowed", inputName: "innerAllowed", children: [innerRule] },
+          ],
+        },
+      },
+      evaluate: (capture) => capture("outerAllowed", outer.value, undefined, { derived: outer } as never)
+        || capture("innerAllowed", inner.value, undefined, { derived: inner } as never),
+    });
+
+    const inspection = runtime.inspectElement({
+      tagName: "BUTTON",
+      textContent: "Refund",
+      getAttribute: (name: string) => name === "data-causescope-node" ? "cs_node_shadowed" : null,
+    } as unknown as Element);
+    const expression = inspection.expressions[0];
+    expect(expression?.inputs).toMatchObject({
+      "outerStatus (1)": "pending",
+      "outerStatus (2)": "paid",
+      outerAllowed: false,
+      innerAllowed: true,
+    });
+    expect(expression?.inputOrigins["outerStatus (1)"]?.[0]?.traceId).toBe("request-outer");
+    expect(expression?.inputOrigins["outerStatus (2)"]?.[0]?.traceId).toBe("request-inner");
+    expect(expression?.conditionEvaluation?.children?.[0]?.children?.[0]?.value).toBe(false);
+    expect(expression?.conditionEvaluation?.children?.[1]?.children?.[0]?.value).toBe(true);
+  });
+
+  it("redacts sensitive derived member paths before merging or exporting them", () => {
+    const runtime = new CauseScopeRuntimeImpl();
+    const privateValue: string = "derived-private-value";
+    const inputName = "cs_private:account.secret.value";
+    const privateRule: ConditionDefinition = {
+      id: "private-rule",
+      type: "binary",
+      expression: 'account.secret.value === "public"',
+      operator: "===",
+      children: [
+        { id: "private-input", type: "member", expression: "account.secret.value", inputName },
+        { id: "private-literal", type: "literal", expression: '"public"', literalValue: "public" },
+      ],
+    };
+    const derivation = runtime.traceDerived({
+      condition: privateRule,
+      evaluate: (capture) => capture(inputName, privateValue, undefined, undefined, "account.secret.value") === "public",
+    });
+    runtime.traceExpression({
+      metadata: {
+        id: "cs_expr_private",
+        nodeId: "cs_node_private",
+        kind: "attribute",
+        property: "disabled",
+        expression: "!allowed",
+        source,
+        condition: {
+          id: "private-consumer",
+          type: "unary",
+          expression: "!allowed",
+          operator: "!",
+          children: [{
+            id: "private-allowed",
+            type: "identifier",
+            expression: "allowed",
+            inputName: "allowed",
+            children: [privateRule],
+          }],
+        },
+      },
+      evaluate: (capture) => !capture("allowed", derivation.value, undefined, { derived: derivation } as never),
+    });
+
+    const inspection = runtime.inspectElement({
+      tagName: "BUTTON",
+      textContent: "Refund",
+      getAttribute: (name: string) => name === "data-causescope-node" ? "cs_node_private" : null,
+    } as unknown as Element);
+    expect(inspection.expressions[0]?.inputs["account.secret.value"]).toBe("[REDACTED]");
+    expect(JSON.stringify(runtime.exportTrace(inspection))).not.toContain(privateValue);
+  });
+
+  it("keeps a sensitive derived string out of the consumer result and condition", () => {
+    const runtime = new CauseScopeRuntimeImpl();
+    const privateValues = ["derived-display-secret-a", "derived-display-secret-b"] as const;
+    const inputName = "cs_private_display:account.secret.value";
+    const privateRule: ConditionDefinition = {
+      id: "private-display-rule",
+      type: "logical",
+      expression: 'account.secret.value || "fallback"',
+      operator: "||",
+      children: [
+        { id: "private-display-input", type: "member", expression: "account.secret.value", inputName },
+        { id: "private-display-fallback", type: "literal", expression: '"fallback"', literalValue: "fallback" },
+      ],
+    };
+    for (const privateValue of privateValues) {
+      const derivation = runtime.traceDerived({
+        condition: privateRule,
+        evaluate: (capture) => capture(inputName, privateValue, undefined, undefined, "account.secret.value") || "fallback",
+      });
+      runtime.traceExpression({
+        metadata: {
+          id: "cs_expr_private_display",
+          nodeId: "cs_node_private_display",
+          kind: "children",
+          property: "children",
+          expression: "display",
+          source,
+          condition: {
+            id: "private-display-consumer",
+            type: "identifier",
+            expression: "display",
+            inputName: "display",
+            children: [privateRule],
+          },
+        },
+        evaluate: (capture) => capture("display", derivation.value, undefined, { derived: derivation } as never),
+      });
+    }
+
+    const inspection = runtime.inspectElement({
+      tagName: "SPAN",
+      textContent: privateValues[1],
+      getAttribute: (name: string) => name === "data-causescope-node" ? "cs_node_private_display" : null,
+    } as unknown as Element);
+    expect(inspection.expressions[0]?.result).toBe("[REDACTED]");
+    expect(inspection.expressions[0]?.inputs.display).toBe("[REDACTED]");
+    const inspected = JSON.stringify(inspection);
+    const exported = JSON.stringify(runtime.exportTrace(inspection));
+    for (const privateValue of privateValues) {
+      expect(inspected).not.toContain(privateValue);
+      expect(exported).not.toContain(privateValue);
+    }
+  });
+
+  it("keeps the observed boolean when a sensitive derived alias is falsy", () => {
+    const runtime = new CauseScopeRuntimeImpl();
+    const inputName = "cs_falsy_private:account.secret.value";
+    const privateRule: ConditionDefinition = {
+      id: "falsy-private-rule",
+      type: "logical",
+      expression: 'account.secret.value ?? ""',
+      operator: "??",
+      children: [
+        { id: "falsy-private-input", type: "member", expression: "account.secret.value", inputName },
+        { id: "falsy-private-empty", type: "literal", expression: '""', literalValue: "" },
+      ],
+    };
+    const derivation = runtime.traceDerived({
+      condition: privateRule,
+      evaluate: (capture) => capture(inputName, null, undefined, undefined, "account.secret.value") ?? "",
+    });
+    runtime.traceExpression({
+      metadata: {
+        id: "cs_expr_falsy_private",
+        nodeId: "cs_node_falsy_private",
+        kind: "attribute",
+        property: "disabled",
+        expression: "!display",
+        source,
+        condition: {
+          id: "falsy-private-consumer",
+          type: "unary",
+          expression: "!display",
+          operator: "!",
+          children: [{ id: "falsy-private-display", type: "identifier", expression: "display", inputName: "display" }],
+        },
+      },
+      evaluate: (capture) => !capture("display", derivation.value, undefined, { derived: derivation } as never),
+    });
+
+    const inspection = runtime.inspectElement({
+      tagName: "BUTTON",
+      textContent: "Continue",
+      getAttribute: (name: string) => name === "data-causescope-node" ? "cs_node_falsy_private" : null,
+    } as unknown as Element);
+    expect(inspection.expressions[0]).toMatchObject({
+      result: true,
+      inputs: { display: "[REDACTED]" },
+      conditionEvaluation: { evaluated: true, value: true },
     });
   });
 

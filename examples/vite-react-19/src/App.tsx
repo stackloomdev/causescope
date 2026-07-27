@@ -5,11 +5,13 @@ import { DataOriginsPage } from "./pages/DataOriginsPage";
 import { DiagnosticsPage } from "./pages/DiagnosticsPage";
 import { GranularityPage } from "./pages/GranularityPage";
 import { OrdersPage } from "./pages/OrdersPage";
+import { RefundPage } from "./pages/RefundPage";
 import { StabilityPage } from "./pages/StabilityPage";
 
 const navigation = [
   { href: "/", label: "Product editor" },
   { href: "/orders", label: "Order queue" },
+  { href: "/refund", label: "Refund trace" },
   { href: "/account", label: "Account" },
   { href: "/origins", label: "Data origins" },
   { href: "/diagnostics", label: "Diagnostics" },
@@ -25,6 +27,8 @@ export function App(): ReactElement {
   const pathname = normalizedPathname();
   const page = pathname === "/orders"
     ? <OrdersPage />
+    : pathname === "/refund"
+      ? <RefundPage />
     : pathname === "/account"
       ? <AccountPage />
       : pathname === "/origins"

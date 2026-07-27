@@ -20,7 +20,28 @@ function markShortCircuited(definition: ConditionDefinition): ConditionEvaluatio
   };
 }
 
+function boundDerivedEvaluation(
+  evaluation: ConditionEvaluation,
+  expanded: Set<string>,
+): ConditionEvaluation {
+  const { children, ...summary } = evaluation;
+  const key = `condition:${evaluation.id}`;
+  if (expanded.has(key)) return summary;
+  expanded.add(key);
+  return {
+    ...summary,
+    ...(children ? { children: children.map((child) => boundDerivedEvaluation(child, expanded)) } : {}),
+  };
+}
+
+const COERCION_UNAVAILABLE = Symbol("coercion-unavailable");
+
 function evaluateBinary(operator: string | undefined, left: unknown, right: unknown): unknown {
+  const needsUserCoercion = (value: unknown): boolean =>
+    (typeof value === "object" && value !== null) || typeof value === "function";
+  if (operator !== "===" && operator !== "!==" && (needsUserCoercion(left) || needsUserCoercion(right))) {
+    return COERCION_UNAVAILABLE;
+  }
   switch (operator) {
     case "===": return left === right;
     case "!==": return left !== right;
@@ -30,7 +51,7 @@ function evaluateBinary(operator: string | undefined, left: unknown, right: unkn
     case ">=": return (left as number) >= (right as number);
     case "<": return (left as number) < (right as number);
     case "<=": return (left as number) <= (right as number);
-    default: return undefined;
+    default: return COERCION_UNAVAILABLE;
   }
 }
 
@@ -50,7 +71,14 @@ function markDeciding(evaluation: ConditionEvaluation): ConditionEvaluation {
   };
 }
 
-function evaluateNode(definition: ConditionDefinition, inputs: Record<string, unknown>): ConditionEvaluation {
+type DerivedConditionEvaluations = Record<string, ConditionEvaluation | undefined>;
+
+function evaluateNode(
+  definition: ConditionDefinition,
+  inputs: Record<string, unknown>,
+  derivedEvaluations: DerivedConditionEvaluations,
+  expandedDerived: Set<string>,
+): ConditionEvaluation {
   if (definition.type === "literal") {
     return { ...evaluationBase(definition), evaluated: true, value: definition.literalValue };
   }
@@ -58,7 +86,17 @@ function evaluateNode(definition: ConditionDefinition, inputs: Record<string, un
   if (definition.type === "identifier" || definition.type === "member") {
     const inputName = definition.inputName ?? definition.expression;
     if (!Object.prototype.hasOwnProperty.call(inputs, inputName)) return { ...evaluationBase(definition), evaluated: false };
-    return { ...evaluationBase(definition), evaluated: true, value: inputs[inputName] };
+    const derivedEvaluation = derivedEvaluations[inputName];
+    const derivedKey = `input:${inputName}`;
+    const children = derivedEvaluation && !expandedDerived.has(derivedKey)
+      ? (expandedDerived.add(derivedKey), [boundDerivedEvaluation(derivedEvaluation, expandedDerived)])
+      : definition.children?.map((child) => evaluateNode(child, inputs, derivedEvaluations, expandedDerived));
+    return {
+      ...evaluationBase(definition),
+      evaluated: true,
+      value: inputs[inputName],
+      ...(children?.length ? { children } : {}),
+    };
   }
 
   if (definition.type === "call" || definition.type === "unknown") {
@@ -69,21 +107,23 @@ function evaluateNode(definition: ConditionDefinition, inputs: Record<string, un
 
   const childDefinitions = definition.children ?? [];
   if (definition.type === "unary") {
-    const child = childDefinitions[0] ? evaluateNode(childDefinitions[0], inputs) : undefined;
+    const child = childDefinitions[0] ? evaluateNode(childDefinitions[0], inputs, derivedEvaluations, expandedDerived) : undefined;
     if (!child?.evaluated) return { ...evaluationBase(definition), evaluated: false, children: child ? [child] : [] };
     const value = definition.operator === "!" ? !child.value : undefined;
     return { ...evaluationBase(definition), evaluated: true, value, children: [child] };
   }
 
   if (definition.type === "binary") {
-    const left = childDefinitions[0] ? evaluateNode(childDefinitions[0], inputs) : undefined;
-    const right = childDefinitions[1] ? evaluateNode(childDefinitions[1], inputs) : undefined;
+    const left = childDefinitions[0] ? evaluateNode(childDefinitions[0], inputs, derivedEvaluations, expandedDerived) : undefined;
+    const right = childDefinitions[1] ? evaluateNode(childDefinitions[1], inputs, derivedEvaluations, expandedDerived) : undefined;
     const children = [left, right].filter((child): child is ConditionEvaluation => Boolean(child));
     if (!left?.evaluated || !right?.evaluated) return { ...evaluationBase(definition), evaluated: false, children };
+    const value = evaluateBinary(definition.operator, left.value, right.value);
+    if (value === COERCION_UNAVAILABLE) return { ...evaluationBase(definition), evaluated: false, children };
     return {
       ...evaluationBase(definition),
       evaluated: true,
-      value: evaluateBinary(definition.operator, left.value, right.value),
+      value,
       children,
     };
   }
@@ -91,7 +131,7 @@ function evaluateNode(definition: ConditionDefinition, inputs: Record<string, un
   if (definition.type === "logical") {
     const leftDefinition = childDefinitions[0];
     const rightDefinition = childDefinitions[1];
-    const left = leftDefinition ? evaluateNode(leftDefinition, inputs) : undefined;
+    const left = leftDefinition ? evaluateNode(leftDefinition, inputs, derivedEvaluations, expandedDerived) : undefined;
     if (!left?.evaluated) return { ...evaluationBase(definition), evaluated: false, children: left ? [left] : [] };
 
     const operator = definition.operator;
@@ -103,7 +143,7 @@ function evaluateNode(definition: ConditionDefinition, inputs: Record<string, un
       return { ...evaluationBase(definition), evaluated: true, value: left.value, children };
     }
 
-    const right = rightDefinition ? evaluateNode(rightDefinition, inputs) : undefined;
+    const right = rightDefinition ? evaluateNode(rightDefinition, inputs, derivedEvaluations, expandedDerived) : undefined;
     const children = right ? [left, markDeciding(right)] : [left];
     return {
       ...evaluationBase(definition),
@@ -117,12 +157,12 @@ function evaluateNode(definition: ConditionDefinition, inputs: Record<string, un
     const testDefinition = childDefinitions[0];
     const consequentDefinition = childDefinitions[1];
     const alternateDefinition = childDefinitions[2];
-    const test = testDefinition ? evaluateNode(testDefinition, inputs) : undefined;
+    const test = testDefinition ? evaluateNode(testDefinition, inputs, derivedEvaluations, expandedDerived) : undefined;
     if (!test?.evaluated) return { ...evaluationBase(definition), evaluated: false, children: test ? [test] : [] };
     const chooseConsequent = Boolean(test.value);
     const chosenDefinition = chooseConsequent ? consequentDefinition : alternateDefinition;
     const skippedDefinition = chooseConsequent ? alternateDefinition : consequentDefinition;
-    const chosen = chosenDefinition ? evaluateNode(chosenDefinition, inputs) : undefined;
+    const chosen = chosenDefinition ? evaluateNode(chosenDefinition, inputs, derivedEvaluations, expandedDerived) : undefined;
     const children: ConditionEvaluation[] = [markDeciding(test)];
     if (chooseConsequent) {
       if (chosen) children.push(chosen);
@@ -146,10 +186,14 @@ export function evaluateCondition(
   definition: ConditionDefinition | undefined,
   inputs: Record<string, unknown>,
   result: unknown,
+  derivedEvaluations: DerivedConditionEvaluations = {},
+  useObservedResult = false,
 ): ConditionEvaluation | undefined {
   if (!definition) return undefined;
-  const evaluation = evaluateNode(definition, inputs);
-  return evaluation.evaluated ? evaluation : { ...evaluation, evaluated: true, value: result };
+  const evaluation = evaluateNode(definition, inputs, derivedEvaluations, new Set());
+  return useObservedResult || !evaluation.evaluated
+    ? { ...evaluation, evaluated: true, value: result }
+    : evaluation;
 }
 
 export function findDecidingBranch(evaluation: ConditionEvaluation | undefined): string | undefined {

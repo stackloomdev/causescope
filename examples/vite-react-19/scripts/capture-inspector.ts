@@ -16,13 +16,20 @@ const context = await browser.newContext({
 const page = await context.newPage();
 
 try {
-  await page.goto(baseUrl, { waitUntil: "networkidle" });
-
-  const title = page.getByRole("textbox", { name: "Title" });
-  await title.fill("CauseScope Launch Mug");
+  await page.goto(`${baseUrl}/refund`, { waitUntil: "networkidle" });
+  const refundButton = page.getByRole("button", { name: "Refund order" });
+  await refundButton.waitFor();
   await page.getByRole("button", { name: /Inspect/ }).click();
-  await page.getByText("Changes ready", { exact: true }).click();
+  await refundButton.hover();
+  await page.locator(".cs-highlight-label").waitFor();
+  await refundButton.click({ force: true });
   await page.getByRole("tab", { name: "Why", exact: true }).waitFor();
+
+  const drawer = page.getByRole("complementary", { name: "CauseScope inspector" });
+  const resizer = drawer.getByRole("button", { name: "Resize CauseScope inspector" });
+  await resizer.focus();
+  for (let index = 0; index < 10; index += 1) await resizer.press("ArrowLeft");
+  await drawer.getByText('order.status === "paid"', { exact: true }).scrollIntoViewIfNeeded();
 
   await page.screenshot({
     animations: "disabled",

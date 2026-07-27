@@ -72,6 +72,19 @@ function fixtureApi(enableHmrFixture: boolean): Plugin {
           setTimeout(() => send({ data: { role: "workspace-owner", canPublish: true } }), 70);
           return;
         }
+        if (url.pathname === "/api/orders/4821") {
+          setTimeout(() => send({
+            data: {
+              order: {
+                id: "4821",
+                customer: "Noah Williams",
+                total: "$184.00",
+                status: "pending",
+              },
+            },
+          }), 80);
+          return;
+        }
         return next();
       });
     },

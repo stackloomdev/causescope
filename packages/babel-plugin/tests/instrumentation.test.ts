@@ -59,6 +59,105 @@ describe("CauseScope Babel instrumentation", () => {
     expect(output).not.toContain("data-causescope-expression");
   });
 
+  it("carries a local derived condition into the selected JSX expression without evaluating it twice", () => {
+    const output = transform(`
+      import { useState } from 'react';
+
+      interface Order { status: 'paid' | 'pending' }
+
+      export function RefundAction() {
+        const [order] = useState<Order>({ status: 'pending' });
+        const canRefund = order.status === "paid";
+        return <button disabled={!canRefund}>Refund order</button>;
+      }
+    `);
+
+    expect(output).toContain(".traceDerived");
+    expect(output).toMatch(/derived: _canRefundDerivation\d*/);
+    expect(output).toMatch(/causeScopeDerivedCapture\d*\("cs_derived_[^".]+:order\.status"[\s\S]*"order\.status"[\s\S]*=== ["']paid["']/);
+    expect(output).toContain("condition:");
+    expect(output).toContain('expression: "canRefund"');
+    expect(output).toContain('expression: "order.status === \\"paid\\""');
+    expect(() => transformSync(output, {
+      filename: "/workspace/src/CompiledRefundAction.tsx",
+      babelrc: false,
+      configFile: false,
+      parserOpts: { sourceType: "module", plugins: ["typescript", "jsx"] },
+    })).not.toThrow();
+  });
+
+  it("keeps await and yield derived initializers in their original function context", () => {
+    const asyncOutput = transform(`
+      declare function fetchStatus(): Promise<string>;
+      export async function AsyncGate() {
+        const paid = (await fetchStatus()) === "paid";
+        return <button disabled={!paid}>Refund</button>;
+      }
+    `);
+    const generatorOutput = transform(`
+      export function* GeneratorGate() {
+        const paid = (yield "pending") === "paid";
+        return <button disabled={!paid}>Refund</button>;
+      }
+    `);
+
+    expect(asyncOutput).not.toContain(".traceDerived");
+    expect(generatorOutput).not.toContain(".traceDerived");
+    for (const output of [asyncOutput, generatorOutput]) {
+      expect(() => transformSync(output, {
+        filename: "/workspace/src/CompiledAsyncGate.tsx",
+        babelrc: false,
+        configFile: false,
+        parserOpts: { sourceType: "module", plugins: ["typescript", "jsx"] },
+      })).not.toThrow();
+    }
+  });
+
+  it("does not create an unused derivation for a custom component prop boundary", () => {
+    const output = transform(`
+      function RefundButton({ disabled }: { disabled: boolean }) {
+        return <button disabled={disabled}>Refund</button>;
+      }
+      export function RefundGate({ order }: { order: { status: string } }) {
+        const canRefund = order.status === "paid";
+        return <RefundButton disabled={!canRefund} />;
+      }
+    `);
+
+    expect(output).toContain(".traceProp");
+    expect(output).not.toContain(".traceDerived");
+  });
+
+  it("bounds derived dependency expansion instead of duplicating a DAG exponentially", () => {
+    const declarations = ["const d0 = seed === 'ok';"];
+    for (let index = 1; index <= 12; index += 1) {
+      declarations.push(`const d${index} = d${index - 1} && d${index - 1};`);
+    }
+    const output = transform(`
+      export function DeepGate({ seed }: { seed: string }) {
+        ${declarations.join("\n")}
+        return <button disabled={!d12}>Continue</button>;
+      }
+    `);
+
+    expect(output.match(/\.traceDerived/g) ?? []).toHaveLength(13);
+    expect(output.length).toBeLessThan(300_000);
+  });
+
+  it("assigns occurrence-specific keys to repeated derived reads", () => {
+    const output = transform(`
+      export function GetterGate({ record }: { record: { readonly ready: boolean } }) {
+        const ready = record.ready && record.ready;
+        return <button disabled={!ready}>Continue</button>;
+      }
+    `);
+    const keys = [...output.matchAll(/causeScopeDerivedCapture\d*\("(cs_derived_[^"]+:record\.ready)"/g)]
+      .map((match) => match[1]);
+
+    expect(keys).toHaveLength(2);
+    expect(new Set(keys).size).toBe(2);
+  });
+
   it("leaves TypeScript qualified names untouched while tracing runtime values", () => {
     const output = transform(`
       import * as React from 'react';

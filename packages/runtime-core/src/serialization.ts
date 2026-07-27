@@ -26,12 +26,26 @@ function canonicalKey(value: string): string {
 }
 
 export function isSensitiveKey(key: string, candidates: string[]): boolean {
-  const canonical = canonicalKey(key);
-  if (!canonical) return false;
-  return candidates.some((candidate) => {
-    const sensitive = canonicalKey(candidate);
-    return Boolean(sensitive) && (canonical === sensitive || canonical.endsWith(sensitive));
-  });
+  const matches = (value: string): boolean => {
+    const canonical = canonicalKey(value);
+    if (!canonical) return false;
+    return candidates.some((candidate) => {
+      const sensitive = canonicalKey(candidate);
+      return Boolean(sensitive) && (canonical === sensitive || canonical.endsWith(sensitive));
+    });
+  };
+  if (matches(key)) return true;
+
+  // Captured expressions use paths such as account.secret.value or
+  // account["client_secret"].value. A sensitive segment must redact the
+  // resulting operand even when a later property makes the full key end in a
+  // non-sensitive word.
+  const pathSegments = key
+    .replace(/\[\s*["']([^"']+)["']\s*\]/g, ".$1")
+    .split(/[.\[\]]+/)
+    .map((segment) => segment.trim())
+    .filter(Boolean);
+  return pathSegments.some(matches);
 }
 
 export function mergeRedaction(overrides?: Partial<RedactOptions>): RedactOptions {

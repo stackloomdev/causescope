@@ -1,6 +1,7 @@
 import type {
   CaptureOriginHint,
   ComponentFrame,
+  ConditionDefinition,
   ConditionEvaluation,
   EventContext,
   ExpressionTraceMetadata,
@@ -40,7 +41,11 @@ import type {
   ValueOrigin,
 } from "@causescope/shared";
 import { installBrowserInstrumentation } from "./browser-instrumentation";
-import { evaluateCondition, evaluateConditionalRender, findDecidingBranch } from "./condition";
+import {
+  evaluateCondition,
+  evaluateConditionalRender,
+  findDecidingBranch,
+} from "./condition";
 import {
   mergeRedaction,
   isSensitiveKey,
@@ -119,6 +124,32 @@ interface ActiveExpressionCapture {
   origins: Map<string, ValueOrigin[]>;
 }
 
+interface DerivedTrace<T = unknown> {
+  value: T;
+  sensitive: boolean;
+  inputs: Record<string, unknown>;
+  inputStateIds: Record<string, string>;
+  inputOrigins: Record<string, ValueOrigin[]>;
+  inputLabels: Record<string, string>;
+  derivedEvaluations: Record<string, ConditionEvaluation>;
+  conditionEvaluation?: ConditionEvaluation;
+}
+
+interface DerivedCaptureOriginHint extends CaptureOriginHint {
+  derived?: DerivedTrace;
+}
+
+interface TraceDerivedInput<T> {
+  condition: ConditionDefinition;
+  evaluate: (capture: <Value>(
+    name: string,
+    value: Value,
+    stateId?: string,
+    originHint?: DerivedCaptureOriginHint,
+    displayName?: string,
+  ) => Value) => T;
+}
+
 interface PropPassRecord {
   metadata: PropPassMetadata;
   value: unknown;
@@ -133,6 +164,84 @@ interface RecentPrimitiveOrigin {
 
 function createId(prefix: string, sequence: number): string {
   return `${prefix}_${sequence.toString(36)}`;
+}
+
+interface NormalizedInputRecords {
+  inputs: Record<string, unknown>;
+  inputStateIds: Record<string, string>;
+  inputOrigins: Record<string, ValueOrigin[]>;
+  keyMap: Map<string, string>;
+}
+
+function normalizeInputRecords(
+  inputs: Record<string, unknown>,
+  inputStateIds: Record<string, string>,
+  inputOrigins: Record<string, ValueOrigin[]>,
+  inputLabels: Record<string, string>,
+): NormalizedInputRecords {
+  const keys = [...new Set([
+    ...Object.keys(inputs),
+    ...Object.keys(inputStateIds),
+    ...Object.keys(inputOrigins),
+  ])];
+  const labelCounts = new Map<string, number>();
+  for (const key of keys) {
+    const label = inputLabels[key] ?? key;
+    labelCounts.set(label, (labelCounts.get(label) ?? 0) + 1);
+  }
+  const labelIndexes = new Map<string, number>();
+  const normalizedInputs: Record<string, unknown> = {};
+  const normalizedStateIds: Record<string, string> = {};
+  const normalizedOrigins: Record<string, ValueOrigin[]> = {};
+  const keyMap = new Map<string, string>();
+
+  for (const key of keys) {
+    const label = inputLabels[key] ?? key;
+    const index = (labelIndexes.get(label) ?? 0) + 1;
+    labelIndexes.set(label, index);
+    const publicName = (labelCounts.get(label) ?? 0) > 1 ? `${label} (${index})` : label;
+    keyMap.set(key, publicName);
+    if (Object.prototype.hasOwnProperty.call(inputs, key)) normalizedInputs[publicName] = inputs[key];
+    if (inputStateIds[key]) normalizedStateIds[publicName] = inputStateIds[key];
+    if (inputOrigins[key]) normalizedOrigins[publicName] = inputOrigins[key];
+  }
+
+  return {
+    inputs: normalizedInputs,
+    inputStateIds: normalizedStateIds,
+    inputOrigins: normalizedOrigins,
+    keyMap,
+  };
+}
+
+function remapConditionDefinition(
+  definition: ConditionDefinition,
+  keyMap: Map<string, string>,
+): ConditionDefinition {
+  return {
+    ...definition,
+    ...(definition.inputName && keyMap.has(definition.inputName)
+      ? { inputName: keyMap.get(definition.inputName) as string }
+      : {}),
+    ...(definition.children
+      ? { children: definition.children.map((child) => remapConditionDefinition(child, keyMap)) }
+      : {}),
+  };
+}
+
+function remapConditionEvaluation(
+  evaluation: ConditionEvaluation,
+  keyMap: Map<string, string>,
+): ConditionEvaluation {
+  return {
+    ...evaluation,
+    ...(evaluation.inputName && keyMap.has(evaluation.inputName)
+      ? { inputName: keyMap.get(evaluation.inputName) as string }
+      : {}),
+    ...(evaluation.children
+      ? { children: evaluation.children.map((child) => remapConditionEvaluation(child, keyMap)) }
+      : {}),
+  };
 }
 
 function displayValue(value: unknown): string {
@@ -219,6 +328,7 @@ function readSelectedProp(
 
 export class CauseScopeRuntimeImpl implements CauseScopeRuntime {
   readonly #expressions = new Map<string, ExpressionResult>();
+  readonly #sensitiveExpressionIds = new Set<string>();
   readonly #expressionIdsByNode = new Map<string, Map<string, string>>();
   readonly #propPasses: PropPassRecord[] = [];
   readonly #stateUpdates: StateUpdate[] = [];
@@ -262,15 +372,31 @@ export class CauseScopeRuntimeImpl implements CauseScopeRuntime {
   }
 
   traceExpression<T>(input: TraceExpressionInput<T>): T {
-    const inputs: Record<string, unknown> = { ...input.inputs };
+    const initialInputs = input.inputs ?? {};
+    const inputs: Record<string, unknown> = { ...initialInputs };
     const inputStateIds: Record<string, string> = {};
     const inputOrigins: Record<string, ValueOrigin[]> = {};
+    const inputLabels: Record<string, string> = Object.fromEntries(Object.keys(initialInputs).map((name) => [name, name]));
+    const derivedEvaluations: Record<string, ConditionEvaluation> = {};
+    const sensitiveInputs = new Set<string>();
     const activeCapture: ActiveExpressionCapture = { metadata: input.metadata, origins: new Map() };
     const capture = <Value>(name: string, value: Value, stateId?: string, originHint?: CaptureOriginHint): Value => {
+      const derived = (originHint as DerivedCaptureOriginHint | undefined)?.derived;
+      this.#mergeDerivedTrace(
+        derived,
+        inputs,
+        inputStateIds,
+        inputOrigins,
+        inputLabels,
+        derivedEvaluations,
+      );
+      inputLabels[name] = name;
       inputs[name] = value;
+      if (derived?.sensitive) sensitiveInputs.add(name);
       if (stateId) inputStateIds[name] = stateId;
       const origins = this.#originsForValue(value, originHint);
-      if (origins.length > 0) inputOrigins[name] = origins;
+      if (origins.length > 0) inputOrigins[name] = this.#uniqueOrigins([...(inputOrigins[name] ?? []), ...origins]);
+      if (derived?.conditionEvaluation) derivedEvaluations[name] = derived.conditionEvaluation;
       return value;
     };
     const previousCapture = this.#activeExpressionCapture;
@@ -284,8 +410,98 @@ export class CauseScopeRuntimeImpl implements CauseScopeRuntime {
     for (const [name, origins] of activeCapture.origins) {
       inputOrigins[name] = [...(inputOrigins[name] ?? []), ...origins];
     }
-    this.#recordExpression(input.metadata, result, inputs, inputStateIds, inputOrigins, "operands");
+    const recordedInputs = Object.fromEntries(Object.entries(inputs).map(([name, value]) => [
+      name,
+      sensitiveInputs.has(name) ? "[REDACTED]" : value,
+    ]));
+    const sensitiveResult = typeof result !== "boolean" && sensitiveInputs.size > 0;
+    this.#recordExpression(
+      input.metadata,
+      sensitiveResult ? "[REDACTED]" : result,
+      recordedInputs,
+      inputStateIds,
+      inputOrigins,
+      "operands",
+      inputLabels,
+      derivedEvaluations,
+      sensitiveResult,
+    );
     return result;
+  }
+
+  traceDerived<T>(input: TraceDerivedInput<T>): DerivedTrace<T> {
+    const inputs: Record<string, unknown> = {};
+    const inputStateIds: Record<string, string> = {};
+    const inputOrigins: Record<string, ValueOrigin[]> = {};
+    const inputLabels: Record<string, string> = {};
+    const derivedEvaluations: Record<string, ConditionEvaluation> = {};
+    let hasSensitiveInput = false;
+    const activeCapture: ActiveExpressionCapture = {
+      metadata: {
+        id: "cs_derived",
+        nodeId: "cs_derived",
+        kind: "attribute",
+        property: "derived",
+        expression: "derived",
+        source: { file: "unknown.tsx", line: 1, column: 1 },
+      },
+      origins: new Map(),
+    };
+    const capture = <Value>(
+      name: string,
+      value: Value,
+      stateId?: string,
+      originHint?: DerivedCaptureOriginHint,
+      displayName?: string,
+    ): Value => {
+      const label = displayName ?? name;
+      if (this.#isSensitiveKey(label) || originHint?.derived?.sensitive) hasSensitiveInput = true;
+      this.#mergeDerivedTrace(
+        originHint?.derived,
+        inputs,
+        inputStateIds,
+        inputOrigins,
+        inputLabels,
+        derivedEvaluations,
+      );
+      inputLabels[name] = label;
+      inputs[name] = value;
+      if (stateId) inputStateIds[name] = stateId;
+      const origins = this.#originsForValue(value, originHint);
+      if (origins.length > 0) inputOrigins[name] = this.#uniqueOrigins([...(inputOrigins[name] ?? []), ...origins]);
+      if (originHint?.derived?.conditionEvaluation) {
+        derivedEvaluations[name] = originHint.derived.conditionEvaluation;
+      }
+      return value;
+    };
+    const previousCapture = this.#activeExpressionCapture;
+    this.#activeExpressionCapture = activeCapture;
+    let value: T;
+    try {
+      value = input.evaluate(capture);
+    } finally {
+      this.#activeExpressionCapture = previousCapture;
+    }
+    for (const [name, origins] of activeCapture.origins) {
+      inputOrigins[name] = this.#uniqueOrigins([...(inputOrigins[name] ?? []), ...origins]);
+    }
+    const conditionEvaluation = evaluateCondition(
+      input.condition,
+      inputs,
+      value,
+      derivedEvaluations,
+      true,
+    );
+    return {
+      value,
+      sensitive: hasSensitiveInput && typeof value !== "boolean",
+      inputs,
+      inputStateIds,
+      inputOrigins,
+      inputLabels,
+      derivedEvaluations,
+      ...(conditionEvaluation ? { conditionEvaluation } : {}),
+    };
   }
 
   traceBoolean(input: TraceBooleanInput): boolean {
@@ -741,7 +957,7 @@ export class CauseScopeRuntimeImpl implements CauseScopeRuntime {
         return selectedProp.found
           ? {
             ...base,
-            result: selectedProp.value,
+            result: this.#sensitiveExpressionIds.has(expression.id) ? "[REDACTED]" : selectedProp.value,
             inputs: {},
             inputStateIds: {},
             inputOrigins: {},
@@ -1109,6 +1325,24 @@ export class CauseScopeRuntimeImpl implements CauseScopeRuntime {
     return this.#uniqueOrigins(origins);
   }
 
+  #mergeDerivedTrace(
+    derived: DerivedTrace | undefined,
+    inputs: Record<string, unknown>,
+    inputStateIds: Record<string, string>,
+    inputOrigins: Record<string, ValueOrigin[]>,
+    inputLabels: Record<string, string>,
+    derivedEvaluations: Record<string, ConditionEvaluation>,
+  ): void {
+    if (!derived) return;
+    Object.assign(inputs, derived.inputs);
+    Object.assign(inputStateIds, derived.inputStateIds);
+    Object.assign(inputLabels, derived.inputLabels);
+    Object.assign(derivedEvaluations, derived.derivedEvaluations);
+    for (const [name, origins] of Object.entries(derived.inputOrigins)) {
+      inputOrigins[name] = this.#uniqueOrigins([...(inputOrigins[name] ?? []), ...origins]);
+    }
+  }
+
   #originsAlongAccessPath(originValue: object, accessPath: string): ValueOrigin[] {
     const segments = parseAccessPath(accessPath);
     if (!segments) return [];
@@ -1295,7 +1529,8 @@ export class CauseScopeRuntimeImpl implements CauseScopeRuntime {
 
   #inspectionContainsSensitiveValue(inspection: InspectionResult): boolean {
     return inspection.expressions.some((expression) =>
-      (expression.result !== undefined && (
+      this.#sensitiveExpressionIds.has(expression.id)
+      || (expression.result !== undefined && (
         this.#isSensitiveKey(expression.expression)
         || this.#isSensitiveKey(expression.property)
       ))
@@ -1695,15 +1930,36 @@ export class CauseScopeRuntimeImpl implements CauseScopeRuntime {
     inputStateIds: Record<string, string>,
     inputOrigins: Record<string, ValueOrigin[]>,
     traceMode: ExpressionResult["traceMode"],
+    inputLabels: Record<string, string> = {},
+    derivedEvaluations: Record<string, ConditionEvaluation> = {},
+    sensitiveResult = false,
   ): void {
     try {
-      const conditionEvaluation = evaluateCondition(metadata.condition, inputs, result);
+      // One JSX source can render several instances before inspection. Once
+      // any instance is sensitive, keep that source conservative until it is
+      // replaced or evicted so a later public row cannot clear the evidence.
+      if (sensitiveResult) this.#sensitiveExpressionIds.add(metadata.id);
+      const normalized = normalizeInputRecords(inputs, inputStateIds, inputOrigins, inputLabels);
+      const internalConditionEvaluation = evaluateCondition(
+        metadata.condition,
+        inputs,
+        result,
+        derivedEvaluations,
+        metadata.condition?.expression === metadata.expression,
+      );
+      const conditionEvaluation = internalConditionEvaluation
+        ? remapConditionEvaluation(internalConditionEvaluation, normalized.keyMap)
+        : undefined;
+      const condition = metadata.condition
+        ? remapConditionDefinition(metadata.condition, normalized.keyMap)
+        : undefined;
       const trace: ExpressionResult = {
         ...metadata,
+        ...(condition ? { condition } : {}),
         result,
-        inputs,
-        inputStateIds,
-        inputOrigins,
+        inputs: normalized.inputs,
+        inputStateIds: normalized.inputStateIds,
+        inputOrigins: normalized.inputOrigins,
         traceMode,
         timestamp: Date.now(),
       };
@@ -1725,6 +1981,7 @@ export class CauseScopeRuntimeImpl implements CauseScopeRuntime {
       const previousExpressionId = nodeExpressionIds.get(expressionSlot);
       if (previousExpressionId && previousExpressionId !== metadata.id) {
         this.#expressions.delete(previousExpressionId);
+        this.#sensitiveExpressionIds.delete(previousExpressionId);
       }
       nodeExpressionIds.set(expressionSlot, metadata.id);
       this.#expressionIdsByNode.set(metadata.nodeId, nodeExpressionIds);
@@ -1732,6 +1989,7 @@ export class CauseScopeRuntimeImpl implements CauseScopeRuntime {
         const oldest = this.#expressions.keys().next().value as string | undefined;
         if (!oldest) break;
         this.#expressions.delete(oldest);
+        this.#sensitiveExpressionIds.delete(oldest);
       }
       const functionIdentityOnlyChange = typeof previousTrace?.result === "function" && typeof result === "function";
       if (previousTrace && !Object.is(previousTrace.result, result) && !functionIdentityOnlyChange) {
