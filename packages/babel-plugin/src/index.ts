@@ -478,6 +478,9 @@ function instrumentExpressionInputs(
 
   const callExpressionNames = new WeakMap<t.Node, string>();
   expressionPath.traverse({
+    TSType(typePath) {
+      typePath.skip();
+    },
     Function(functionPath) {
       functionPath.skip();
     },

@@ -59,6 +59,35 @@ describe("CauseScope Babel instrumentation", () => {
     expect(output).not.toContain("data-causescope-expression");
   });
 
+  it("leaves TypeScript qualified names untouched while tracing runtime values", () => {
+    const output = transform(`
+      import * as React from 'react';
+
+      export function Sidebar({ style }: React.ComponentProps<'div'>) {
+        return (
+          <div
+            data-react-version={React.version}
+            style={{ '--sidebar-width': '16rem', ...style } as React.CSSProperties}
+          />
+        );
+      }
+    `);
+
+    expect(output).toContain("React.ComponentProps<'div'>");
+    expect(output).toContain("as React.CSSProperties");
+    expect(output).toMatch(/causeScopeCapture\d*\("React\.version"/);
+    expect(output).toMatch(/causeScopeCapture\d*\("style", style,/);
+    expect(() => transformSync(output, {
+      filename: "/workspace/src/CompiledSidebar.tsx",
+      babelrc: false,
+      configFile: false,
+      parserOpts: {
+        sourceType: "module",
+        plugins: ["typescript", "jsx"],
+      },
+    })).not.toThrow();
+  });
+
   it("keeps static JSX nodes factual and leaves key and ref untouched", () => {
     const output = transform(`
       export function Badge({ id, reference }: { id: string; reference: { current: HTMLSpanElement | null } }) {
