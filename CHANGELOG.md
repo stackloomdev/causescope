@@ -4,6 +4,19 @@ All notable changes to CauseScope will be documented here. The format follows [K
 
 ## [Unreleased]
 
+## [1.0.0-beta.8] - 2026-07-27
+
+### Added
+
+- Traced derived render conditions through local aliases to primitive inputs and confirmed network responses, with a refund fixture and public demo that show the full evidence chain.
+- Documented the current Vite-first support boundary and a gated Next.js Client Component feasibility track without implying React Server Component support.
+
+### Fixed
+
+- Kept condition evaluation bounded and truthful across repeated reads, shared expression graphs, short-circuit paths, unsupported coercions, and repeated component instances.
+- Preserved sensitive-value redaction across derived aliases, historical rows, repeated host props, and exported traces while distinguishing confirmed, possible, and lost network evidence.
+- Coalesced selected-element refreshes without putting ordinary host interactions or closed inspectors on the full inspection path.
+
 ## [1.0.0-beta.7] - 2026-07-27
 
 ### Fixed
