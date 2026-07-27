@@ -22,6 +22,12 @@ The entry budgets measure code emitted by CauseScope; third-party dependencies r
 
 The production budget remains zero. `pnpm verify:production` scans every example build for the virtual runtime, overlay root, open-in-editor endpoint, debug attributes, and instrumentation helpers. The Vite plugin only activates while serving in development mode.
 
+## Host interaction budget
+
+Ordinary pointer, focus, keyboard, and click events resolve handler source metadata through the runtime's node index; they do not build a full element inspection. The overlay subscribes to live inspection updates only while its drawer is open, and a burst of notifications is coalesced into one refresh per animation frame. Closing the drawer clears the selection and removes that subscription.
+
+The React 19 Playwright lane instruments `inspectElement()` itself and requires zero calls for an ordinary interaction both before inspection and after the drawer closes. It also requires ten synchronous runtime notifications to produce exactly one open-drawer refresh. These call-count assertions stay deterministic while the real browser matrix covers the event timing around them.
+
 ## Why wall-clock timing is reported separately
 
 CI does not fail on a single transform-duration number because shared-runner hardware and cold filesystem caches make that threshold noisy. Deterministic bytes and production absence are hard gates; browser interaction and transform correctness are covered by the real Vite and Playwright matrix.

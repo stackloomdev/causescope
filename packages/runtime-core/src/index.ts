@@ -428,6 +428,27 @@ export class CauseScopeRuntimeImpl implements CauseScopeRuntime {
     this.#adapter = adapter;
   }
 
+  findElementExpression(
+    element: Element,
+    properties: readonly string[],
+  ): Pick<ExpressionTraceMetadata, "expression" | "property" | "source"> | undefined {
+    const nodeId = element.getAttribute("data-causescope-node");
+    if (!nodeId || properties.length === 0) return undefined;
+    const expressionIds = this.#expressionIdsByNode.get(nodeId);
+    if (!expressionIds) return undefined;
+
+    for (const expressionId of expressionIds.values()) {
+      const expression = this.#expressions.get(expressionId);
+      if (!expression || !properties.includes(expression.property)) continue;
+      return {
+        expression: expression.expression,
+        property: expression.property,
+        source: expression.source,
+      };
+    }
+    return undefined;
+  }
+
   installAdapter(adapter: CauseScopeAdapter): () => void {
     let cleanup: void | (() => void);
     try {
@@ -1274,13 +1295,25 @@ export class CauseScopeRuntimeImpl implements CauseScopeRuntime {
 
   #inspectionContainsSensitiveValue(inspection: InspectionResult): boolean {
     return inspection.expressions.some((expression) =>
-      this.#isSensitiveKey(expression.expression)
-      || this.#isSensitiveKey(expression.property)
-      || Object.keys(expression.inputs).some((key) => this.#isSensitiveKey(key)),
+      (expression.result !== undefined && (
+        this.#isSensitiveKey(expression.expression)
+        || this.#isSensitiveKey(expression.property)
+      ))
+      || Object.entries(expression.inputs).some(([key, value]) =>
+        value !== undefined && this.#isSensitiveKey(key),
+      ),
     )
-      || inspection.props.some((prop) => this.#isSensitiveKey(prop.name))
-      || inspection.states.some((state) => this.#isSensitiveKey(state.stateName))
-      || inspection.storageAccesses.some((access) => this.#isSensitiveKey(access.key));
+      || inspection.props.some((prop) => prop.value !== undefined && this.#isSensitiveKey(prop.name))
+      || inspection.states.some((state) => (
+        state.initial !== undefined
+        || state.current !== undefined
+        || state.latestUpdate?.previous !== undefined
+        || state.latestUpdate?.next !== undefined
+        || state.latestUpdate?.action !== undefined
+      ) && this.#isSensitiveKey(state.stateName))
+      || inspection.storageAccesses.some((access) =>
+        access.value !== undefined && this.#isSensitiveKey(access.key),
+      );
   }
 
   #collectSensitiveTextValues(inspection: InspectionResult): string[] {
@@ -1505,6 +1538,7 @@ export class CauseScopeRuntimeImpl implements CauseScopeRuntime {
     depth: number,
     seen: WeakSet<object>,
   ): unknown {
+    if (value === undefined) return undefined;
     if (key && this.#isQueryKeyMetadataKey(key)) {
       const sanitized = this.#redactInspectionValue(value, undefined, sensitiveValues, depth, seen);
       return this.#redactQueryKeyTuples(sanitized);
@@ -1598,6 +1632,7 @@ export class CauseScopeRuntimeImpl implements CauseScopeRuntime {
   }
 
   #redactExportValue(value: unknown, key?: string): SerializedValue {
+    if (value === undefined) return { type: "undefined" };
     if (key && this.#isSensitiveKey(key)) return { type: "primitive", value: "[REDACTED]" };
     if (key && this.#isQueryKeyMetadataKey(key)) {
       const sanitized = this.#redactInspectionValue(value, key, [], 0, new WeakSet<object>());

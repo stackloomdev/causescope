@@ -320,6 +320,44 @@ describe("CauseScopeRuntimeImpl", () => {
     expect(runtime.getTimeline()).toEqual([]);
   });
 
+  it("resolves event handler metadata without running a full element inspection", () => {
+    const runtime = new CauseScopeRuntimeImpl();
+    const adapterLookup = vi.fn(() => {
+      throw new Error("Fiber lookup should not run for event metadata");
+    });
+    runtime.setReactAdapter({
+      findFiberFromElement: adapterLookup,
+      getParentFiber: () => null,
+      getComponentName: () => "ProductEditor",
+      getCurrentProps: () => ({}),
+      getComponentStack: () => ["ProductEditor"],
+    });
+    runtime.traceExpression({
+      metadata: {
+        id: "cs_expr_lightweight_handler",
+        nodeId: "cs_node_lightweight_handler",
+        kind: "attribute",
+        property: "onClick",
+        expression: "() => saveDraft()",
+        source,
+      },
+      evaluate: () => () => undefined,
+    });
+    const element = {
+      getAttribute: (name: string) => name === "data-causescope-node" ? "cs_node_lightweight_handler" : null,
+      get ownerDocument(): never {
+        throw new Error("Document scan should not run for event metadata");
+      },
+    } as unknown as Element;
+
+    expect(runtime.findElementExpression(element, ["onPointerDown", "onClick"])).toEqual({
+      expression: "() => saveDraft()",
+      property: "onClick",
+      source,
+    });
+    expect(adapterLookup).not.toHaveBeenCalled();
+  });
+
   it("binds repeated JSX source results to the selected React host instance", () => {
     const runtime = new CauseScopeRuntimeImpl();
     type RowElement = {
@@ -1469,6 +1507,72 @@ describe("CauseScopeRuntimeImpl", () => {
     expect(inspection.timeline[0]?.label).not.toContain("top-secret");
     expect(inspection.timeline[0]?.metadata?.apiKey).toBe("[REDACTED]");
     expect(JSON.stringify(inspection)).not.toMatch(/top-secret|origin-secret|timeline-secret|attribute-secret|fragment-secret/);
+  });
+
+  it("preserves unavailable Props as undefined before applying sensitive-key redaction", () => {
+    const runtime = new CauseScopeRuntimeImpl();
+    runtime.setReactAdapter({
+      findFiberFromElement: (element) => element,
+      getParentFiber: () => null,
+      getComponentName: () => "MenuButton",
+      getCurrentProps: () => ({}),
+      getComponentStack: () => ["MenuButton"],
+      getComponentFrames: () => [{
+        componentName: "MenuButton",
+        props: {
+          apiKey: "top-secret",
+          label: undefined,
+          title: "My Site",
+          token: undefined,
+        },
+      }],
+    });
+
+    const inspection = runtime.inspectElement({
+      tagName: "BUTTON",
+      textContent: "My Site",
+      getAttribute: () => null,
+    } as unknown as Element);
+    const props = Object.fromEntries(inspection.props.map((prop) => [prop.name, prop.value]));
+
+    expect(props).toEqual({
+      apiKey: "[REDACTED]",
+      label: undefined,
+      title: "My Site",
+      token: undefined,
+    });
+    expect(Object.fromEntries(
+      runtime.exportTrace(inspection).component?.props.map((prop) => [prop.name, prop.value]) ?? [],
+    )).toEqual({
+      apiKey: { type: "primitive", value: "[REDACTED]" },
+      label: { type: "undefined" },
+      title: { type: "primitive", value: "My Site" },
+      token: { type: "undefined" },
+    });
+  });
+
+  it("does not redact an element label for a sensitive-named Prop that has no value", () => {
+    const runtime = new CauseScopeRuntimeImpl();
+    runtime.setReactAdapter({
+      findFiberFromElement: (element) => element,
+      getParentFiber: () => null,
+      getComponentName: () => "MenuButton",
+      getCurrentProps: () => ({}),
+      getComponentStack: () => ["MenuButton"],
+      getComponentFrames: () => [{
+        componentName: "MenuButton",
+        props: { title: "My Site", token: undefined },
+      }],
+    });
+
+    const inspection = runtime.inspectElement({
+      tagName: "BUTTON",
+      textContent: "My Site",
+      getAttribute: () => null,
+    } as unknown as Element);
+
+    expect(inspection.element.label).toBe("My Site");
+    expect(inspection.props.find((prop) => prop.name === "token")?.value).toBeUndefined();
   });
 
   it("redacts nested secrets copied into a derived string result", () => {

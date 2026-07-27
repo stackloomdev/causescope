@@ -27,6 +27,18 @@ interface HighlightBox {
   label: string;
 }
 
+type ElementExpressionReference = Pick<
+  ExpressionResult,
+  "expression" | "property" | "source"
+>;
+
+interface EventExpressionLookup {
+  findElementExpression(
+    element: Element,
+    properties: readonly string[],
+  ): ElementExpressionReference | undefined;
+}
+
 function formatValue(value: unknown): string {
   if (typeof value === "string") {
     const truncated = value.length > 160 ? `${value.slice(0, 157)}…` : value;
@@ -124,14 +136,15 @@ function findEventHandler(
   host: HTMLElement,
   runtime: CauseScopeRuntime,
   eventType: string,
-): { target: Element; expression?: ExpressionResult } | null {
+): { target: Element; expression?: ElementExpressionReference } | null {
   const properties = EVENT_HANDLER_PROPERTIES[eventType] ?? [];
   let target = resolveInspectableTarget(initialTarget, host);
   while (target && !isOverlayTarget(target, host)) {
     if (properties.length > 0) {
-      const expression = runtime.inspectElement(target).expressions.find((candidate) =>
-        properties.includes(candidate.property),
-      );
+      const lookup = (runtime as CauseScopeRuntime & Partial<EventExpressionLookup>).findElementExpression;
+      const expression = lookup
+        ? lookup.call(runtime, target, properties)
+        : runtime.inspectElement(target).expressions.find((candidate) => properties.includes(candidate.property));
       if (expression) return { target, expression };
     }
     const parent = target.parentElement;
@@ -401,10 +414,22 @@ function WhyPanel({ inspection }: { inspection: InspectionResult }): JSX.Element
   );
 }
 
+export function partitionPropsForDisplay(props: InspectionResult["props"]): {
+  visibleProps: InspectionResult["props"];
+  hiddenUnavailableProps: number;
+} {
+  const visibleProps = props.filter((prop) => prop.value !== undefined);
+  return {
+    visibleProps,
+    hiddenUnavailableProps: props.length - visibleProps.length,
+  };
+}
+
 function ValuesPanel({ inspection }: { inspection: InspectionResult }): JSX.Element {
   const entries = inspection.expressions.flatMap((expression) =>
     Object.entries(expression.inputs).map(([name, value]) => ({ expression, name, value })),
   );
+  const { visibleProps, hiddenUnavailableProps } = partitionPropsForDisplay(inspection.props);
   return (
     <section class="cs-panel">
       <p class="cs-eyebrow">Current evaluation</p>
@@ -426,8 +451,8 @@ function ValuesPanel({ inspection }: { inspection: InspectionResult }): JSX.Elem
         ))}
       </div>
       <div class="cs-subsection">
-        <div class="cs-section-title"><h3>Props</h3><span>{inspection.props.length} current</span></div>
-        {inspection.props.length > 0 ? inspection.props.map((prop) => (
+        <div class="cs-section-title"><h3>Props</h3><span>{visibleProps.length} available</span></div>
+        {visibleProps.length > 0 ? visibleProps.map((prop) => (
           <article class="cs-origin-card" key={`${prop.componentName}:${prop.name}:${prop.relationship}`}>
             <div><strong>{prop.componentName}.props.{prop.name}</strong><span>{prop.relationship}</span></div>
             <code>{formatValue(prop.value)}</code>
@@ -435,7 +460,14 @@ function ValuesPanel({ inspection }: { inspection: InspectionResult }): JSX.Elem
               <p>Passed from <code>{prop.passedFrom.source.file}:{prop.passedFrom.source.line}:{prop.passedFrom.source.column}</code> via <code>{prop.name}={prop.passedFrom.expression}</code></p>
             ) : <p>Current value confirmed from React Fiber; parent callsite unavailable.</p>}
           </article>
-        )) : <p class="cs-note">No current component Props were found.</p>}
+        )) : <p class="cs-note">No current component Props with available values were found.</p>}
+        {hiddenUnavailableProps > 0 ? (
+          <p class="cs-note">
+            {hiddenUnavailableProps === 1
+              ? "1 Prop with no current value is hidden."
+              : `${hiddenUnavailableProps} Props with no current value are hidden.`}
+          </p>
+        ) : null}
       </div>
       <div class="cs-subsection">
         <div class="cs-section-title"><h3>Value origins</h3><span>{inspection.origins.length} linked</span></div>
@@ -766,9 +798,22 @@ function OverlayApp({ runtime, host }: { runtime: CauseScopeRuntime; host: HTMLE
   const toggleButton = useRef<HTMLButtonElement | null>(null);
   const selectionActive = inspectMode || drawerOpen;
 
-  useEffect(() => runtime.subscribe(() => {
-    if (selectedElement.current) setInspection(runtime.inspectElement(selectedElement.current));
-  }), [runtime]);
+  useEffect(() => {
+    if (!drawerOpen) return;
+    let refreshFrame: number | null = null;
+    const unsubscribe = runtime.subscribe(() => {
+      if (refreshFrame !== null) return;
+      refreshFrame = window.requestAnimationFrame(() => {
+        refreshFrame = null;
+        const target = selectedElement.current;
+        if (target?.isConnected) setInspection(runtime.inspectElement(target));
+      });
+    });
+    return () => {
+      unsubscribe();
+      if (refreshFrame !== null) window.cancelAnimationFrame(refreshFrame);
+    };
+  }, [drawerOpen, runtime]);
 
   useEffect(() => {
     const inspect = (target: Element): void => {
@@ -887,7 +932,10 @@ function OverlayApp({ runtime, host }: { runtime: CauseScopeRuntime; host: HTMLE
 
     const onWindowKeyDown = (event: KeyboardEvent): void => {
       if (event.key !== "Escape" || (!drawerOpen && !inspectMode)) return;
-      if (drawerOpen) setDrawerOpen(false);
+      if (drawerOpen) {
+        selectedElement.current = null;
+        setDrawerOpen(false);
+      }
       setInspectMode(false);
       setHighlight(null);
       window.setTimeout(() => toggleButton.current?.focus(), 0);
@@ -1029,6 +1077,7 @@ function OverlayApp({ runtime, host }: { runtime: CauseScopeRuntime; host: HTMLE
           inspection={inspection}
           notice={notice}
           onClose={() => {
+            selectedElement.current = null;
             setDrawerOpen(false);
             setInspectMode(false);
             setHighlight(null);
