@@ -1,13 +1,29 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { ApprovalCard } from "./components/ApprovalCard";
+import { RefundCard, type Order } from "./components/RefundCard";
 import { SignalCard } from "./components/SignalCard";
 
 export function App(): React.ReactElement {
   const [approvals, setApprovals] = useState(2);
   const [locked, setLocked] = useState(true);
   const [published, setPublished] = useState(false);
+  const [order, setOrder] = useState<Order | null>(null);
+  const [settled, setSettled] = useState(false);
   const canPublish = approvals >= 3 && !locked;
   const confidence = useMemo(() => `${Math.min(88 + approvals * 3, 100)}%`, [approvals]);
+
+  useEffect(() => {
+    let active = true;
+    const url = settled ? "/api/orders/4821?settled=1" : "/api/orders/4821";
+    void fetch(url)
+      .then((response) => response.json() as Promise<{ data: { order: Order } }>)
+      .then((payload) => {
+        if (active) setOrder(payload.data.order);
+      });
+    return () => {
+      active = false;
+    };
+  }, [settled]);
 
   return (
     <main className="page-shell">
@@ -56,6 +72,19 @@ export function App(): React.ReactElement {
       </section>
 
       <section className="workspace">
+        <div className="section-heading">
+          <div>
+            <p className="eyebrow">Network evidence</p>
+            <h2>Why is Refund order disabled?</h2>
+          </div>
+          <p>
+            Inspect the disabled button. The chain runs from <code>disabled</code> through <code>canRefund</code> and
+            <code> order.status</code> to the <code>GET /api/orders/4821</code> response that carried it. Simulate the
+            settlement to watch the same chain change.
+          </p>
+        </div>
+        <RefundCard order={order} settled={settled} onSettle={() => setSettled(true)} />
+
         <div className="section-heading">
           <div>
             <p className="eyebrow">Interactive fixture</p>

@@ -9,6 +9,12 @@ pnpm dev
 
 Open the CauseScope inspector and select the static heading, release status, progress bar, or disabled publish button. Unlock the review and add an approval to produce real React state transitions before inspecting the affected UI again.
 
+## The network fixture
+
+Selecting the disabled **Refund order** button reproduces the chain the README demonstrates: `disabled` → `canRefund` → `order.status` → the `GET /api/orders/4821` response that carried it. **Simulate settlement** replays the request so the same chain can be watched changing while the inspector is open.
+
+The order is served by a development-server middleware in `vite.config.ts`, so the request is real rather than an in-memory stand-in — without a response there is no network evidence to trace. That middleware is dev-only, which is all the lab runs; a production build of this folder exists purely so `verify:stackblitz` can prove CauseScope leaves nothing behind in it.
+
 ## Why `@rolldown/binding-wasm32-wasi` is a direct dependency
 
 Vite 8 bundles with rolldown, which loads a platform-specific native binding. StackBlitz reports `linux-x64`, so pnpm's platform filter installs the native Linux binding and skips the WebAssembly one. WebContainer cannot execute a native binary, so rolldown falls back to WebAssembly — and that fallback is not installed. The lab then fails to start:
