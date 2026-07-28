@@ -7,6 +7,7 @@ All notable changes to CauseScope will be documented here. The format follows [K
 ### Changed
 
 - Reframed the refund demo around the selected control and inspector evidence, with stable source and network holds that remain readable at README and social-feed sizes.
+- Closed the StackBlitz live-lab predecessor window as soon as the target release is published to npm, so a lab left on the previous version fails `verify:stackblitz` instead of trailing silently until the next release.
 
 ## [1.0.0-beta.9] - 2026-07-28
 

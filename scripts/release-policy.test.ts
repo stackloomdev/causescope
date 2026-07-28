@@ -3,6 +3,7 @@ import {
   allowedLiveLabVersions,
   assertInstallDocumentation,
   assertLiveLabVersion,
+  enforcesPublishedLiveLabPin,
   installSpecifier,
   parseReleaseVersion,
 } from "./release-policy.js";
@@ -74,6 +75,47 @@ describe("release policy", () => {
       "1.0.0-beta.3",
       ["1.0.0", "1.0.0-rc.1", "1.0.0-beta.3"],
     )).toThrow("immediate predecessor");
+  });
+
+  it("closes the predecessor window once the repository version is published", () => {
+    const history = ["1.0.0-beta.9", "1.0.0-beta.8"];
+    expect(allowedLiveLabVersions("1.0.0-beta.9", history, { repositoryVersionPublished: true }))
+      .toEqual(["1.0.0-beta.9"]);
+    expect(() => assertLiveLabVersion("1.0.0-beta.9", "1.0.0-beta.8", history, {
+      repositoryVersionPublished: true,
+    })).toThrow("already published on npm");
+    expect(() => assertLiveLabVersion("1.0.0-beta.9", "1.0.0-beta.9", history, {
+      repositoryVersionPublished: true,
+    })).not.toThrow();
+  });
+
+  it("keeps the predecessor window open while the release is unpublished or unverifiable", () => {
+    const history = ["1.0.0-beta.9", "1.0.0-beta.8"];
+    for (const repositoryVersionPublished of [false, undefined]) {
+      expect(allowedLiveLabVersions("1.0.0-beta.9", history, { repositoryVersionPublished }))
+        .toEqual(["1.0.0-beta.9", "1.0.0-beta.8"]);
+      expect(() => assertLiveLabVersion("1.0.0-beta.9", "1.0.0-beta.8", history, {
+        repositoryVersionPublished,
+      })).not.toThrow();
+    }
+  });
+
+  it("still rejects a lab two releases behind even when the release is published", () => {
+    expect(() => assertLiveLabVersion(
+      "1.0.0",
+      "1.0.0-beta.3",
+      ["1.0.0", "1.0.0-rc.1", "1.0.0-beta.3"],
+      { repositoryVersionPublished: true },
+    )).toThrow("already published on npm");
+  });
+
+  it("does not hold a tagged release run to the published pin", () => {
+    // The tagged commit is immutable, and rerunning a tag after a successful
+    // npm publish is the documented recovery path for a failed GitHub release.
+    expect(enforcesPublishedLiveLabPin({ GITHUB_REF_TYPE: "tag" })).toBe(false);
+    expect(enforcesPublishedLiveLabPin({ GITHUB_REF_TYPE: "branch" })).toBe(true);
+    expect(enforcesPublishedLiveLabPin({})).toBe(true);
+    expect(enforcesPublishedLiveLabPin()).toBe(true);
   });
 
   it("rejects out-of-order and future prereleases in changelog history", () => {

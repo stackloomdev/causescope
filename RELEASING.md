@@ -25,7 +25,7 @@ Only numbered `beta` and `rc` prereleases are supported by the automated release
 2. Move the relevant Unreleased notes into a dated Changelog section whose version exactly matches the package.
 3. Update every public install surface to the target channel: `@beta`, `@rc`, or no suffix for stable.
 4. Update compatibility, migration, public API, and privacy documentation when the release changes any of those contracts.
-5. Do **not** point the live lab at the unpublished target. Keep it on the immediate previous release. The gate accepts that one-version gap during the release PR and rejects an older pin.
+5. Do **not** point the live lab at the unpublished target. Keep it on the immediate previous release. The gate accepts that one-version gap only while the target is absent from npm, and rejects an older pin.
 6. Run:
 
    ```bash
@@ -68,7 +68,14 @@ No local npm token is part of this flow. Do not add tokens, passwords, recovery 
 
 ## Post-release synchronization
 
-Open a separate PR that updates `examples/stackblitz/package.json` and its frozen lockfile to the version that now exists on npm. Run the isolated live-lab verifier and exercise the public StackBlitz URL. This synchronization must merge before another release can pass.
+Open a separate PR that updates `examples/stackblitz/package.json` and its frozen lockfile to the version that now exists on npm. Run the isolated live-lab verifier and exercise the public StackBlitz URL.
+
+This synchronization is required immediately, not merely before the next release. `verify:stackblitz` queries the registry: once the target version is published, the one-version predecessor gap closes and every subsequent branch and pull-request run fails until the lab is bumped.
+
+Two deliberate exemptions keep that rule from blocking recovery:
+
+- **Tagged runs.** A tagged commit cannot be edited, so rerunning a tag after a successful publish — the recovery path below — never fails on the pin.
+- **Unreachable registry.** The gap stays open, so an npm outage degrades the check rather than breaking unrelated builds.
 
 For stable 1.0, also replace pre-1.0 install and testing language, close the completed milestone, and publish the stable announcement only after the registry, docs, and live lab checks succeed.
 
