@@ -6,7 +6,7 @@
 
 **点击任意界面，追踪它为何出现。**
 
-面向 React 的本地优先证据检查器。选中一个普通页面元素，就能沿着真实证据回到精确 TSX、实时判断、状态更新、Props、Store 或网络请求。
+选中 React 应用里的任意元素，一路回溯到精确 TSX、产生它的那次判断，以及判断背后的状态或接口响应。
 
 [![npm](https://img.shields.io/npm/v/causescope?label=npm&color=ff385c)](https://www.npmjs.com/package/causescope)
 [![CI](https://github.com/stackloomdev/causescope/actions/workflows/ci.yml/badge.svg)](https://github.com/stackloomdev/causescope/actions/workflows/ci.yml)
@@ -15,15 +15,6 @@
 [在线实验室](https://stackblitz.com/fork/github/stackloomdev/causescope/tree/main/examples/stackblitz?title=CauseScope%20Live%20Lab) · [文档](https://stackloomdev.github.io/causescope/) · [60 秒接入](https://stackloomdev.github.io/causescope/getting-started) · [Beta 测试](https://stackloomdev.github.io/causescope/beta-testing) · [路线图](ROADMAP.md) · [讨论区](https://github.com/stackloomdev/causescope/discussions) · [English](README.md)
 
 </div>
-
-> [!IMPORTANT]
-> **当前以 Vite 为先。** CauseScope 目前支持运行在 Vite 5–8 上的 React 18/19 应用，尚未支持 Next.js；针对 Client Components 的可行性范围与发布门槛已明确写入[路线图](ROADMAP.md#nextjs-feasibility)。
-
-![CauseScope 从 React 页面元素追踪到源码与实时状态](docs/assets/causescope-demo.gif)
-
-## 找到表象背后的答案
-
-“为什么这个按钮是 disabled？”只是一个有用场景，不是写死的产品模型。CauseScope 可以选择按钮、普通文本、输入框、列表以及其他 DOM 元素，并展示这个元素真正存在的证据：
 
 ```text
 <button disabled={!canRefund}>Refund order</button>
@@ -34,7 +25,12 @@
                      └─ GET /api/orders/4821 · 200
 ```
 
-如果选中的是静态文本，或者不存在动态判断，CauseScope 就只展示精确源码与组件位置。证据缺失或存在歧义时会明确标记 unavailable，不会编造结论。
+React DevTools 能告诉你 `canRefund` 是 `false`。CauseScope 告诉你它为什么是 `false`。
+
+![CauseScope 把一个禁用按钮一路追踪到源码、状态，以及背后的接口响应](docs/assets/causescope-demo.gif)
+
+> [!IMPORTANT]
+> **当前以 Vite 为先。** CauseScope 目前支持运行在 Vite 5–8 上的 React 18/19 应用，尚未支持 Next.js；针对 Client Components 的可行性范围与发布门槛已明确写入[路线图](ROADMAP.md#nextjs-feasibility)。
 
 ## 一分钟接入
 
@@ -60,6 +56,8 @@ CauseScope 只在开发模式的 `vite serve` 中运行。生产包不包含插�
 在稳定版 1.0 前参与验证时，请按 [Beta 测试指南](https://stackloomdev.github.io/causescope/beta-testing)覆盖多种证据路径，并只提交已脱敏的最小 TypeScript 复现。
 
 ## 面板展示什么
+
+禁用按钮只是一个有用场景，不是写死的产品模型。CauseScope 可以选择按钮、普通文本、输入框、列表以及其他 DOM 元素，并展示这个元素真正存在的证据。如果选中的是静态文本，或者不存在动态判断，它就只展示精确源码与组件位置。证据缺失或存在歧义时会明确标记 unavailable，不会编造结论。
 
 | 视图 | 证据 |
 | --- | --- |

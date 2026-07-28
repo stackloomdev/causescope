@@ -6,7 +6,7 @@
 
 **Click any UI. Trace the cause.**
 
-The local-first evidence inspector for React. Select an ordinary page element and follow it to the exact TSX, live decision, state transition, prop, store, or request that produced it.
+Select any element in your React app and follow it back to the exact TSX, the decision that produced it, and the state or response behind that decision.
 
 [![npm](https://img.shields.io/npm/v/causescope?label=npm&color=ff385c)](https://www.npmjs.com/package/causescope)
 [![CI](https://github.com/stackloomdev/causescope/actions/workflows/ci.yml/badge.svg)](https://github.com/stackloomdev/causescope/actions/workflows/ci.yml)
@@ -15,15 +15,6 @@ The local-first evidence inspector for React. Select an ordinary page element an
 [Try the live lab](https://stackblitz.com/fork/github/stackloomdev/causescope/tree/main/examples/stackblitz?title=CauseScope%20Live%20Lab) · [Documentation](https://stackloomdev.github.io/causescope/) · [60-second setup](https://stackloomdev.github.io/causescope/getting-started) · [Beta testing](https://stackloomdev.github.io/causescope/beta-testing) · [Roadmap](ROADMAP.md) · [Discussions](https://github.com/stackloomdev/causescope/discussions) · [中文](README.zh-CN.md)
 
 </div>
-
-> [!IMPORTANT]
-> **Vite-first today.** CauseScope currently supports React 18/19 applications on Vite 5–8. Next.js is not supported yet; the bounded Client Component feasibility track and its release gates are explicit in the [roadmap](ROADMAP.md#nextjs-feasibility).
-
-![CauseScope tracing a React element from rendered UI to source and live state](docs/assets/causescope-demo.gif)
-
-## The answer behind the symptom
-
-“Why is this button disabled?” is one useful scenario, not the product model. CauseScope can select buttons, text, inputs, lists, and other DOM elements. It reports the evidence that actually exists for that element:
 
 ```text
 <button disabled={!canRefund}>Refund order</button>
@@ -34,7 +25,12 @@ The local-first evidence inspector for React. Select an ordinary page element an
                      └─ GET /api/orders/4821 · 200
 ```
 
-For static text or an element without a dynamic decision, CauseScope simply shows the exact source code and component location. Missing or ambiguous evidence is marked unavailable instead of being invented.
+React DevTools can tell you that `canRefund` is `false`. CauseScope tells you why it is `false`.
+
+![CauseScope tracing a disabled button from rendered UI to source, state, and the API response behind it](docs/assets/causescope-demo.gif)
+
+> [!IMPORTANT]
+> **Vite-first today.** CauseScope currently supports React 18/19 applications on Vite 5–8. Next.js is not supported yet; the bounded Client Component feasibility track and its release gates are explicit in the [roadmap](ROADMAP.md#nextjs-feasibility).
 
 ## Install in one minute
 
@@ -60,6 +56,8 @@ CauseScope only runs for `vite serve` in development. Production builds contain 
 Testing before stable 1.0? Use the [beta testing guide](https://stackloomdev.github.io/causescope/beta-testing) to exercise multiple evidence paths and share a sanitized minimal TypeScript reproduction.
 
 ## What the inspector reports
+
+A disabled button is one useful scenario, not the product model. CauseScope can select buttons, text, inputs, lists, and other DOM elements, and it reports the evidence that actually exists for that element. For static text or an element without a dynamic decision, it simply shows the exact source code and component location. Missing or ambiguous evidence is marked unavailable instead of being invented.
 
 | View | Evidence |
 | --- | --- |
