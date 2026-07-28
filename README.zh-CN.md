@@ -35,8 +35,18 @@ React DevTools 能告诉你 `canRefund` 是 `false`。CauseScope 告诉你它为
 ## 一分钟接入
 
 ```bash
-pnpm add -D causescope@beta
+npm i -D causescope@beta
 ```
+
+<details>
+<summary>pnpm 或 Yarn</summary>
+
+```bash
+pnpm add -D causescope@beta
+yarn add -D causescope@beta
+```
+
+</details>
 
 ```ts
 // vite.config.ts

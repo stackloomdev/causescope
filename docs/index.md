@@ -106,7 +106,7 @@ description: Trace rendered React UI back to the exact TSX, branch, state, props
     </div>
     <div class="cs-code-window">
       <div class="cs-code-tabs"><b>terminal</b><span>vite.config.ts</span></div>
-      <pre><code><span class="cs-code-muted">$</span> pnpm add -D causescope@beta<br /><br /><span class="cs-code-pink">import</span> causeScope <span class="cs-code-pink">from</span> <span class="cs-code-green">"causescope/vite"</span>;<br /><br /><span class="cs-code-pink">export default</span> defineConfig({
+      <pre><code><span class="cs-code-muted">$</span> npm i -D causescope@beta<br /><br /><span class="cs-code-pink">import</span> causeScope <span class="cs-code-pink">from</span> <span class="cs-code-green">"causescope/vite"</span>;<br /><br /><span class="cs-code-pink">export default</span> defineConfig({
   plugins: [react(), causeScope()],
 });</code></pre>
     </div>
