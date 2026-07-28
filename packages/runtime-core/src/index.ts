@@ -89,10 +89,13 @@ function parseAccessPath(accessPath: string): AccessPathSegment[] | null {
   return segments;
 }
 
+/** A key that can be written with dot access instead of brackets. */
+const identifierKey = /^[A-Za-z_$][\w$]*$/;
+
 function formatAccessPath(segments: AccessPathSegment[]): string {
   return segments.map((segment, index) => {
     if (segment.numeric) return `[${segment.key}]`;
-    if (/^[A-Za-z_$][\w$]*$/.test(segment.key)) return index === 0 ? segment.key : `.${segment.key}`;
+    if (identifierKey.test(segment.key)) return index === 0 ? segment.key : `.${segment.key}`;
     return `[${JSON.stringify(segment.key)}]`;
   }).join("");
 }
@@ -1272,7 +1275,12 @@ export class CauseScopeRuntimeImpl implements CauseScopeRuntime {
       return;
     }
     for (const [key, child] of entries) {
-      const segment = Array.isArray(value) ? `[${key}]` : `.${key}`;
+      // A key that is not a valid identifier has to be bracketed, or the
+      // reported path is not the accessor it claims to be: `rows.row-7.status`
+      // reads as a subtraction, not as `rows["row-7"].status`.
+      const segment = Array.isArray(value)
+        ? `[${key}]`
+        : identifierKey.test(key) ? `.${key}` : `[${JSON.stringify(key)}]`;
       const childOrigin: ValueOrigin = {
         ...origin,
         id: createId("cs_origin", ++this.#sequence),

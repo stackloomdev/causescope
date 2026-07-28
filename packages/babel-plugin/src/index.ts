@@ -595,15 +595,83 @@ function originHintObject(input: {
   storage?: StorageBindingMetadata;
   derived?: t.Identifier;
   originValue?: t.Expression;
-  accessPath?: string;
+  accessPath?: string | t.Expression;
 }): t.ObjectExpression {
   const properties: t.ObjectProperty[] = [];
   if (input.prop) properties.push(t.objectProperty(t.identifier("origin"), propOriginObject(input.prop)));
   if (input.storage) properties.push(t.objectProperty(t.identifier("origin"), storageOriginObject(input.storage)));
   if (input.derived) properties.push(t.objectProperty(t.identifier("derived"), t.cloneNode(input.derived)));
   if (input.originValue) properties.push(t.objectProperty(t.identifier("originValue"), input.originValue));
-  if (input.accessPath) properties.push(t.objectProperty(t.identifier("accessPath"), t.stringLiteral(input.accessPath)));
+  if (input.accessPath) {
+    properties.push(t.objectProperty(
+      t.identifier("accessPath"),
+      typeof input.accessPath === "string" ? t.stringLiteral(input.accessPath) : input.accessPath,
+    ));
+  }
   return t.objectExpression(properties);
+}
+
+/**
+ * Builds the runtime path segment for a computed key whose value is only known
+ * at render time, matching the grammar `parseAccessPath` accepts: `[0]` for a
+ * number and `["key"]` for anything else, escaped the way the parser un-escapes
+ * it with `JSON.parse`.
+ */
+function dynamicSegmentExpression(key: t.Identifier): t.Expression {
+  const concat = (left: t.Expression, right: t.Expression): t.BinaryExpression =>
+    t.binaryExpression("+", left, right);
+  return t.conditionalExpression(
+    t.binaryExpression("===", t.unaryExpression("typeof", t.cloneNode(key)), t.stringLiteral("number")),
+    concat(concat(t.stringLiteral("["), t.cloneNode(key)), t.stringLiteral("]")),
+    concat(
+      concat(
+        t.stringLiteral("["),
+        t.callExpression(
+          t.memberExpression(t.identifier("JSON"), t.identifier("stringify")),
+          [t.callExpression(t.identifier("String"), [t.cloneNode(key)])],
+        ),
+      ),
+      t.stringLiteral("]"),
+    ),
+  );
+}
+
+type ChainSegment =
+  | { kind: "static"; text: string }
+  | { kind: "dynamic"; key: t.Expression };
+
+/**
+ * Like `staticMemberInfo`, but keeps computed keys whose value is only known at
+ * render time instead of abandoning the chain. `row[columnId]` and
+ * `items[index].name` are ordinary table and list code; giving up on them
+ * dropped the whole access path, which left a primitive read with no provenance
+ * at all.
+ */
+function memberChainInfo(
+  node: t.MemberExpression | t.OptionalMemberExpression,
+): { root: t.Identifier; segments: ChainSegment[] } | null {
+  const segments: ChainSegment[] = [];
+  let current: t.Expression | t.Super = node;
+  while (t.isMemberExpression(current) || t.isOptionalMemberExpression(current)) {
+    if (current.computed) {
+      if (t.isStringLiteral(current.property)) {
+        segments.unshift({ kind: "static", text: `[${JSON.stringify(current.property.value)}]` });
+      } else if (t.isNumericLiteral(current.property)) {
+        segments.unshift({ kind: "static", text: `[${String(current.property.value)}]` });
+      } else if (t.isExpression(current.property)) {
+        segments.unshift({ kind: "dynamic", key: current.property });
+      } else {
+        return null;
+      }
+    } else if (t.isIdentifier(current.property)) {
+      segments.unshift({ kind: "static", text: current.property.name });
+    } else {
+      return null;
+    }
+    current = current.object;
+  }
+  if (!t.isIdentifier(current)) return null;
+  return { root: current, segments };
 }
 
 function staticMemberInfo(
@@ -651,6 +719,64 @@ function memberWithRoot(
   return cloned;
 }
 
+/**
+ * Rewrites a member chain so the root and every dynamic key read from the
+ * hoisted parameters instead of the original expressions. Both the value and
+ * its access path then come from one evaluation, so a key with side effects or
+ * an unstable result cannot disagree between them.
+ */
+function memberWithRootAndKeys(
+  node: t.MemberExpression | t.OptionalMemberExpression,
+  replacement: t.Identifier,
+  keys: Map<number, t.Identifier>,
+): t.MemberExpression | t.OptionalMemberExpression {
+  const cloned = t.cloneNode(node, true);
+  const chain: Array<t.MemberExpression | t.OptionalMemberExpression> = [];
+  let current: t.Node = cloned;
+  while (t.isMemberExpression(current) || t.isOptionalMemberExpression(current)) {
+    chain.push(current);
+    current = current.object;
+  }
+  // Walked outermost-first; segment indexes count from the root inward.
+  chain.reverse();
+  chain.forEach((memberNode, index) => {
+    const key = keys.get(index);
+    if (key) memberNode.property = t.cloneNode(key);
+  });
+  const innermost = chain[0];
+  if (innermost) innermost.object = t.cloneNode(replacement);
+  return cloned;
+}
+
+/**
+ * Folds chain segments into the access path the runtime parses, emitting a
+ * plain string when every key is known at build time and a concatenation only
+ * when a dynamic key forces it.
+ */
+function accessPathFromSegments(
+  segments: ChainSegment[],
+  keys: Map<number, t.Identifier>,
+): string | t.Expression {
+  const parts: t.Expression[] = [];
+  let literal = "";
+  segments.forEach((segment, index) => {
+    if (segment.kind === "static") {
+      literal += segment.text.startsWith("[") || index === 0 ? segment.text : `.${segment.text}`;
+      return;
+    }
+    if (literal) {
+      parts.push(t.stringLiteral(literal));
+      literal = "";
+    }
+    const key = keys.get(index);
+    if (key) parts.push(dynamicSegmentExpression(key));
+  });
+  if (literal) parts.push(t.stringLiteral(literal));
+  if (parts.length === 0) return "";
+  if (parts.length === 1 && t.isStringLiteral(parts[0])) return parts[0].value;
+  return parts.reduce((left, right) => t.binaryExpression("+", left, right));
+}
+
 function captureInputName(displayName: string, inputNamespace?: string, node?: t.Node): string {
   if (!inputNamespace) return displayName;
   const occurrence = node?.start ?? `${node?.loc?.start.line ?? 0}-${node?.loc?.start.column ?? 0}`;
@@ -667,16 +793,30 @@ function wrapCapturedMember(
   const parent = path.parentPath;
   if ((parent.isCallExpression() || parent.isOptionalCallExpression()) && parent.node.callee === path.node) return false;
   if (parent.isTaggedTemplateExpression() && parent.node.tag === path.node) return false;
-  const member = staticMemberInfo(path.node);
-  if (!member) return false;
-  const binding = path.scope.getBinding(member.root.name);
+  const chain = memberChainInfo(path.node);
+  if (!chain) return false;
+  const binding = path.scope.getBinding(chain.root.name);
   const stateMetadata = binding ? state.causeScope.states.get(binding.identifier) : undefined;
   const propMetadata = binding ? state.causeScope.props.get(binding.identifier) : undefined;
   const storageMetadata = binding ? state.causeScope.storage.get(binding.identifier) : undefined;
   const original = t.cloneNode(path.node, true);
   const displayName = generate(original).code;
-  const originIdentifier = path.scope.generateUidIdentifier(`${member.root.name}Origin`);
-  const evaluatedMember = memberWithRoot(original, originIdentifier);
+  const originIdentifier = path.scope.generateUidIdentifier(`${chain.root.name}Origin`);
+
+  // Each dynamic key becomes a parameter so it is evaluated exactly once, in
+  // the same inner-to-outer order the original expression used.
+  const keyIdentifiers = new Map<number, t.Identifier>();
+  const keyArguments: t.Expression[] = [];
+  chain.segments.forEach((segment, index) => {
+    if (segment.kind !== "dynamic") return;
+    const identifier = path.scope.generateUidIdentifier("causeScopeKey");
+    keyIdentifiers.set(index, identifier);
+    keyArguments.push(t.cloneNode(segment.key, true));
+  });
+
+  const evaluatedMember = keyIdentifiers.size === 0
+    ? memberWithRoot(original, originIdentifier)
+    : memberWithRootAndKeys(original, originIdentifier, keyIdentifiers);
   const captureArguments: t.Expression[] = [
     t.stringLiteral(captureInputName(displayName, inputNamespace, path.node)),
     evaluatedMember,
@@ -685,16 +825,16 @@ function wrapCapturedMember(
       ...(propMetadata ? { prop: propMetadata } : {}),
       ...(storageMetadata ? { storage: storageMetadata } : {}),
       originValue: t.cloneNode(originIdentifier),
-      accessPath: member.accessPath,
+      accessPath: accessPathFromSegments(chain.segments, keyIdentifiers),
     }),
     ...(inputNamespace ? [t.stringLiteral(displayName)] : []),
   ];
   path.replaceWith(t.callExpression(
     t.arrowFunctionExpression(
-      [t.cloneNode(originIdentifier)],
+      [t.cloneNode(originIdentifier), ...[...keyIdentifiers.values()].map((identifier) => t.cloneNode(identifier))],
       t.callExpression(t.cloneNode(captureIdentifier), captureArguments),
     ),
-    [t.cloneNode(member.root)],
+    [t.cloneNode(chain.root), ...keyArguments],
   ));
   path.skip();
   return true;

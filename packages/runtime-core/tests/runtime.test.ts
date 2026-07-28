@@ -2401,3 +2401,64 @@ describe("CauseScopeRuntimeImpl", () => {
     expect(markdown).not.toContain("not-for-export");
   });
 });
+
+describe("dynamically built access paths", () => {
+  it("resolves a runtime-built path to the confirmed network origin", () => {
+    const runtime = new CauseScopeRuntimeImpl();
+    const response = { rows: { "row-7": { status: "pending" } } };
+    runtime.registerValueOrigin(response, {
+      kind: "network",
+      confidence: "confirmed",
+      label: "GET /api/rows",
+      path: "response",
+      traceId: "rows-1",
+    }, true);
+
+    // The shape the plugin emits for `response.rows[columnId].status`.
+    const columnId = "row-7";
+    const segment = typeof columnId === "number" ? `[${columnId}]` : `[${JSON.stringify(String(columnId))}]`;
+    const trace = runtime.traceDerived({
+      condition: { id: "c", type: "member", expression: "cell", inputName: "cell" },
+      evaluate: (capture) => capture("cell", response.rows[columnId]!.status, undefined, {
+        originValue: response,
+        accessPath: `rows${segment}.status`,
+      }, "cell") === "pending",
+    });
+
+    const origins = trace.inputOrigins.cell ?? [];
+    expect(origins).toHaveLength(1);
+    expect(origins[0]).toMatchObject({
+      kind: "network",
+      confidence: "confirmed",
+      label: "GET /api/rows",
+      path: 'response.rows["row-7"].status',
+    });
+  });
+
+  it("resolves a numeric dynamic segment past the registration breadth budget", () => {
+    const runtime = new CauseScopeRuntimeImpl();
+    const items = Array.from({ length: 200 }, (_, index) => ({ name: `item-${index}` }));
+    const response = { items };
+    runtime.registerValueOrigin(response, {
+      kind: "network",
+      confidence: "confirmed",
+      label: "GET /api/items",
+      path: "response",
+      traceId: "items-1",
+    }, true);
+
+    const index = 150;
+    const trace = runtime.traceDerived({
+      condition: { id: "c", type: "member", expression: "name", inputName: "name" },
+      evaluate: (capture) => capture("name", items[index]!.name, undefined, {
+        originValue: response,
+        accessPath: `items[${index}].name`,
+      }, "name") === "item-150",
+    });
+
+    expect(trace.inputOrigins.name?.[0]).toMatchObject({
+      confidence: "confirmed",
+      path: "response.items[150].name",
+    });
+  });
+});
