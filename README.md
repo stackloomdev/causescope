@@ -35,8 +35,19 @@ React DevTools can tell you that `canRefund` is `false`. CauseScope tells you wh
 ## Install in one minute
 
 ```bash
-pnpm add -D causescope@beta
+npm i -D causescope@beta
 ```
+
+<details>
+<summary>pnpm, Yarn, or Bun</summary>
+
+```bash
+pnpm add -D causescope@beta
+yarn add -D causescope@beta
+bun add -d causescope@beta
+```
+
+</details>
 
 ```ts
 // vite.config.ts

@@ -12,10 +12,16 @@ Vite 8 requires Node.js 20.19+ or 22.12+. CauseScope itself keeps a Node.js 18.1
 
 ## Install
 
-Use any npm-compatible package manager. This repository uses pnpm.
+Use any npm-compatible package manager.
+
+```bash
+npm i -D causescope@beta
+```
 
 ```bash
 pnpm add -D causescope@beta
+yarn add -D causescope@beta
+bun add -d causescope@beta
 ```
 
 Add CauseScope to `vite.config.ts`:
