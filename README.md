@@ -39,12 +39,11 @@ npm i -D causescope@beta
 ```
 
 <details>
-<summary>pnpm, Yarn, or Bun</summary>
+<summary>pnpm or Yarn</summary>
 
 ```bash
 pnpm add -D causescope@beta
 yarn add -D causescope@beta
-bun add -d causescope@beta
 ```
 
 </details>

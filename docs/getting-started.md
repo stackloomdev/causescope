@@ -21,7 +21,6 @@ npm i -D causescope@beta
 ```bash
 pnpm add -D causescope@beta
 yarn add -D causescope@beta
-bun add -d causescope@beta
 ```
 
 Add CauseScope to `vite.config.ts`:

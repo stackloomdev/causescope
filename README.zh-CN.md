@@ -39,12 +39,11 @@ npm i -D causescope@beta
 ```
 
 <details>
-<summary>pnpm、Yarn 或 Bun</summary>
+<summary>pnpm 或 Yarn</summary>
 
 ```bash
 pnpm add -D causescope@beta
 yarn add -D causescope@beta
-bun add -d causescope@beta
 ```
 
 </details>
