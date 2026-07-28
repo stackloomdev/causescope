@@ -6,7 +6,7 @@ All notable changes to CauseScope will be documented here. The format follows [K
 
 ### Fixed
 
-- Restored the public StackBlitz lab, which failed to start with "Cannot find native binding". StackBlitz reports `linux-x64`, so pnpm's platform filter installed rolldown's native binding and skipped the WebAssembly one that WebContainer actually needs. The lab now declares that binding directly, and `verify:stackblitz` fails if its version drifts from the rolldown Vite resolves.
+- Restored the public StackBlitz lab, which failed to start with "Cannot find native binding". The lab now installs Rolldown's WebAssembly binding directly, pins its compatible `@napi-rs/wasm-runtime` instead of accepting a breaking minor update, and exercises the WASM path in `verify:stackblitz` even on native CI hosts.
 
 ## [1.0.0-beta.10] - 2026-07-28
 

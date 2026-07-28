@@ -20,3 +20,5 @@ Error: Cannot find native binding.
 Declaring the WebAssembly binding directly defeats the platform filter, because pnpm only filters *optional* dependencies. Local development is unaffected: rolldown still prefers the native binding where one can run.
 
 **Its version must match the rolldown that Vite resolves.** `pnpm verify:stackblitz` fails when they drift, so a Vite upgrade that moves rolldown cannot silently break the public link.
+
+The lab also pins `@napi-rs/wasm-runtime` with a pnpm override. Rolldown 1.1.5 declares `^1.1.6`, but `1.2.0` changed its emnapi peer range to `2.x` while this binding still depends on emnapi `1.x`. A fresh StackBlitz install can otherwise resolve that incompatible minor version even when the committed lockfile is correct. Keep the override until the Rolldown binding itself moves to the matching emnapi runtime.
