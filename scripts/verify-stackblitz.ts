@@ -55,6 +55,28 @@ function portableRelative(from: string, to: string): string {
   return relative(from, to).split(sep).join("/");
 }
 
+/**
+ * Returns whether `causescope@version` exists on the public registry, or
+ * `undefined` when the registry cannot be consulted. An unreachable registry
+ * must not fail this gate: the lockfile install below already depends on npm
+ * being reachable and reports a far clearer error when it is not.
+ */
+async function publishedOnNpm(version: string): Promise<boolean | undefined> {
+  try {
+    // The abbreviated `application/vnd.npm.install-v1+json` type is only valid
+    // on the packument root; the single-version endpoint answers it with 406.
+    const response = await fetch(`https://registry.npmjs.org/causescope/${version}`, {
+      headers: { accept: "application/json" },
+      signal: AbortSignal.timeout(15_000),
+    });
+    if (response.status === 200) return true;
+    if (response.status === 404) return false;
+    return undefined;
+  } catch {
+    return undefined;
+  }
+}
+
 function runPnpm(args: string[], cwd: string): void {
   const command = pnpmEntry ? process.execPath : pnpmCommand;
   const commandArgs = pnpmEntry ? [pnpmEntry, ...args] : args;
@@ -83,8 +105,11 @@ try {
   const releaseHistory = [...changelog.matchAll(/^## \[([^\]]+)\] - \d{4}-\d{2}-\d{2}$/gm)]
     .map((match) => match[1] ?? "");
   // A release PR must merge before the target version exists on npm. During
-  // that window the standalone lab may pin exactly the preceding release.
-  assertLiveLabVersion(repositoryVersion, liveLabVersion, releaseHistory);
+  // that window the standalone lab may pin exactly the preceding release. The
+  // window closes the moment the target is published: from then on the public
+  // lab must run exactly what consumers install.
+  const repositoryVersionPublished = await publishedOnNpm(repositoryVersion);
+  assertLiveLabVersion(repositoryVersion, liveLabVersion, releaseHistory, { repositoryVersionPublished });
   const dependencyVersions = Object.values({ ...liveLabManifest.dependencies, ...liveLabManifest.devDependencies });
   if (dependencyVersions.some((version) => /^(?:file|link|workspace):/.test(version))) {
     throw new Error("The standalone live lab cannot depend on files outside its imported folder.");
@@ -143,8 +168,13 @@ try {
   }
 
   const sourceBytes = sourceFiles.reduce((total, file) => total + statSync(file).size, 0);
+  const pinNote = liveLabVersion === repositoryVersion
+    ? "matching the repository release"
+    : repositoryVersionPublished === undefined
+      ? `trailing unpublished-or-unreachable repository release ${repositoryVersion}`
+      : `trailing unpublished repository release ${repositoryVersion}`;
   console.log(
-    `Verified the standalone pnpm StackBlitz lab with causescope@${liveLabVersion} for repository release ${repositoryVersion}: development transform, source map, and clean production build (${sourceFiles.length} files, ${(sourceBytes / 1024).toFixed(1)} KiB source).`,
+    `Verified the standalone pnpm StackBlitz lab with causescope@${liveLabVersion} (${pinNote}): development transform, source map, and clean production build (${sourceFiles.length} files, ${(sourceBytes / 1024).toFixed(1)} KiB source).`,
   );
 } finally {
   rmSync(temporaryRoot, { recursive: true, force: true });

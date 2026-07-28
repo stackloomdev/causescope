@@ -98,7 +98,24 @@ export function assertDescendingReleaseHistory(releaseHistory: readonly string[]
   }
 }
 
-export function allowedLiveLabVersions(repositoryVersion: string, releaseHistory: readonly string[]): string[] {
+export interface LiveLabVersionOptions {
+  /**
+   * Whether the repository version already exists on the npm registry. The
+   * predecessor allowance only exists because a release PR must merge before
+   * its target version is publishable, and the lab installs with a frozen
+   * lockfile from the public registry. Once the target is published that
+   * justification is gone, so the lab must pin exactly what consumers install.
+   * `undefined` means the registry could not be consulted; the allowance then
+   * stays open rather than failing the build on an unrelated network problem.
+   */
+  repositoryVersionPublished?: boolean | undefined;
+}
+
+export function allowedLiveLabVersions(
+  repositoryVersion: string,
+  releaseHistory: readonly string[],
+  options: LiveLabVersionOptions = {},
+): string[] {
   parseReleaseVersion(repositoryVersion);
   assertDescendingReleaseHistory(releaseHistory);
   if (releaseHistory[0] !== repositoryVersion) {
@@ -107,6 +124,7 @@ export function allowedLiveLabVersions(repositoryVersion: string, releaseHistory
     );
   }
 
+  if (options.repositoryVersionPublished === true) return [repositoryVersion];
   const predecessor = releaseHistory[1];
   if (predecessor === undefined) return [repositoryVersion];
   parseReleaseVersion(predecessor);
@@ -117,9 +135,16 @@ export function assertLiveLabVersion(
   repositoryVersion: string,
   liveLabVersion: string,
   releaseHistory: readonly string[],
+  options: LiveLabVersionOptions = {},
 ): void {
-  const allowed = allowedLiveLabVersions(repositoryVersion, releaseHistory);
+  const allowed = allowedLiveLabVersions(repositoryVersion, releaseHistory, options);
   if (allowed.includes(liveLabVersion)) return;
+  if (options.repositoryVersionPublished === true) {
+    throw new Error(
+      `The live lab pins causescope@${liveLabVersion}, but causescope@${repositoryVersion} is already published on npm. `
+      + "Update examples/stackblitz/package.json and its frozen lockfile so the public lab runs the version consumers install.",
+    );
+  }
   throw new Error(
     `The live lab pins causescope@${liveLabVersion}; expected the current release or its immediate predecessor: ${allowed.join(", ")}.`,
   );
