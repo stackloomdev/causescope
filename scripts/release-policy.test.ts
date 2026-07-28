@@ -3,6 +3,7 @@ import {
   allowedLiveLabVersions,
   assertInstallDocumentation,
   assertLiveLabVersion,
+  enforcesPublishedLiveLabPin,
   installSpecifier,
   parseReleaseVersion,
 } from "./release-policy.js";
@@ -106,6 +107,15 @@ describe("release policy", () => {
       ["1.0.0", "1.0.0-rc.1", "1.0.0-beta.3"],
       { repositoryVersionPublished: true },
     )).toThrow("already published on npm");
+  });
+
+  it("does not hold a tagged release run to the published pin", () => {
+    // The tagged commit is immutable, and rerunning a tag after a successful
+    // npm publish is the documented recovery path for a failed GitHub release.
+    expect(enforcesPublishedLiveLabPin({ GITHUB_REF_TYPE: "tag" })).toBe(false);
+    expect(enforcesPublishedLiveLabPin({ GITHUB_REF_TYPE: "branch" })).toBe(true);
+    expect(enforcesPublishedLiveLabPin({})).toBe(true);
+    expect(enforcesPublishedLiveLabPin()).toBe(true);
   });
 
   it("rejects out-of-order and future prereleases in changelog history", () => {

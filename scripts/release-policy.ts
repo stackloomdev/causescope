@@ -111,6 +111,22 @@ export interface LiveLabVersionOptions {
   repositoryVersionPublished?: boolean | undefined;
 }
 
+/**
+ * Whether a run should hold the live lab to the published release.
+ *
+ * Tagged release runs must not: the tagged commit is immutable, so the lab
+ * cannot be bumped inside it, and the documented recovery path reruns the same
+ * tag after npm has already accepted the publish. Enforcing the rule there
+ * would fail `pnpm check` before the workflow could detect the existing version
+ * and skip republishing. Branch and pull-request runs can always be fixed by
+ * the post-release synchronization PR, so they enforce it.
+ */
+export function enforcesPublishedLiveLabPin(
+  environment: { GITHUB_REF_TYPE?: string | undefined } = {},
+): boolean {
+  return environment.GITHUB_REF_TYPE !== "tag";
+}
+
 export function allowedLiveLabVersions(
   repositoryVersion: string,
   releaseHistory: readonly string[],

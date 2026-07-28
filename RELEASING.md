@@ -70,7 +70,12 @@ No local npm token is part of this flow. Do not add tokens, passwords, recovery 
 
 Open a separate PR that updates `examples/stackblitz/package.json` and its frozen lockfile to the version that now exists on npm. Run the isolated live-lab verifier and exercise the public StackBlitz URL.
 
-This synchronization is required immediately, not merely before the next release. `verify:stackblitz` queries the registry: once the target version is published, the one-version predecessor gap closes and every subsequent run on `main` fails until the lab is bumped. If the registry cannot be reached the gap stays open, so an npm outage degrades the check rather than breaking unrelated builds.
+This synchronization is required immediately, not merely before the next release. `verify:stackblitz` queries the registry: once the target version is published, the one-version predecessor gap closes and every subsequent branch and pull-request run fails until the lab is bumped.
+
+Two deliberate exemptions keep that rule from blocking recovery:
+
+- **Tagged runs.** A tagged commit cannot be edited, so rerunning a tag after a successful publish — the recovery path below — never fails on the pin.
+- **Unreachable registry.** The gap stays open, so an npm outage degrades the check rather than breaking unrelated builds.
 
 For stable 1.0, also replace pre-1.0 install and testing language, close the completed milestone, and publish the stable announcement only after the registry, docs, and live lab checks succeed.
 

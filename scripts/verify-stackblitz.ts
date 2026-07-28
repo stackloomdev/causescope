@@ -11,7 +11,7 @@ import {
 import { tmpdir } from "node:os";
 import { basename, extname, join, relative, resolve, sep } from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
-import { assertLiveLabVersion } from "./release-policy.js";
+import { assertLiveLabVersion, enforcesPublishedLiveLabPin } from "./release-policy.js";
 
 const workspaceRoot = resolve(fileURLToPath(new URL("..", import.meta.url)));
 const sourceRoot = join(workspaceRoot, "examples/stackblitz");
@@ -108,7 +108,13 @@ try {
   // that window the standalone lab may pin exactly the preceding release. The
   // window closes the moment the target is published: from then on the public
   // lab must run exactly what consumers install.
-  const repositoryVersionPublished = await publishedOnNpm(repositoryVersion);
+  //
+  // Except on a tagged release run, where the tagged commit is immutable and
+  // rerunning the tag after a successful publish is the documented recovery
+  // path. See enforcesPublishedLiveLabPin.
+  const repositoryVersionPublished = enforcesPublishedLiveLabPin(process.env)
+    ? await publishedOnNpm(repositoryVersion)
+    : undefined;
   assertLiveLabVersion(repositoryVersion, liveLabVersion, releaseHistory, { repositoryVersionPublished });
   const dependencyVersions = Object.values({ ...liveLabManifest.dependencies, ...liveLabManifest.devDependencies });
   if (dependencyVersions.some((version) => /^(?:file|link|workspace):/.test(version))) {
@@ -170,9 +176,11 @@ try {
   const sourceBytes = sourceFiles.reduce((total, file) => total + statSync(file).size, 0);
   const pinNote = liveLabVersion === repositoryVersion
     ? "matching the repository release"
-    : repositoryVersionPublished === undefined
-      ? `trailing unpublished-or-unreachable repository release ${repositoryVersion}`
-      : `trailing unpublished repository release ${repositoryVersion}`;
+    : !enforcesPublishedLiveLabPin(process.env)
+      ? `trailing repository release ${repositoryVersion} on a tagged run, where the pin cannot be changed`
+      : repositoryVersionPublished === undefined
+        ? `trailing repository release ${repositoryVersion}, which the registry could not confirm`
+        : `trailing unpublished repository release ${repositoryVersion}`;
   console.log(
     `Verified the standalone pnpm StackBlitz lab with causescope@${liveLabVersion} (${pinNote}): development transform, source map, and clean production build (${sourceFiles.length} files, ${(sourceBytes / 1024).toFixed(1)} KiB source).`,
   );
