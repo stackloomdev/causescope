@@ -33,7 +33,11 @@ const maximums = {
   vitePlugin: { raw: 52 * kibibyte, gzip: 11 * kibibyte, brotli: 10 * kibibyte },
   adapters: { raw: 6 * kibibyte, gzip: 3 * kibibyte, brotli: 3 * kibibyte },
   unpackedPackage: 600 * kibibyte,
-  tarball: 128 * kibibyte,
+  // Raised from 128 KiB when breadth-budget recovery landed: a list element
+  // past the hundredth had no provenance at all, which is a silent,
+  // position-dependent failure. Raise this deliberately and say why; the
+  // budget exists to catch growth nobody decided on.
+  tarball: 130 * kibibyte,
 } as const;
 
 function filesWithin(directory: string): string[] {

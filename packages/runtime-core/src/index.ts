@@ -92,6 +92,16 @@ function parseAccessPath(accessPath: string): AccessPathSegment[] | null {
 /** A key that can be written with dot access instead of brackets. */
 const identifierKey = /^[A-Za-z_$][\w$]*$/;
 
+/**
+ * Enumerable own data properties, in declaration order. Accessor properties are
+ * skipped so that neither registration nor lookup can invoke application code.
+ */
+function dataEntries(value: object): Array<[string, unknown]> {
+  return Object.entries(Object.getOwnPropertyDescriptors(value))
+    .filter(([, descriptor]) => descriptor.enumerable && Object.prototype.hasOwnProperty.call(descriptor, "value"))
+    .map(([key, descriptor]) => [key, descriptor.value] as [string, unknown]);
+}
+
 function formatAccessPath(segments: AccessPathSegment[]): string {
   return segments.map((segment, index) => {
     if (segment.numeric) return `[${segment.key}]`;
@@ -338,6 +348,14 @@ export class CauseScopeRuntimeImpl implements CauseScopeRuntime {
   readonly #statesBySetter = new WeakMap<object, RegisteredState>();
   readonly #pendingReducerDispatches = new WeakMap<object, PendingReducerDispatch[]>();
   readonly #valueOrigins = new WeakMap<object, ValueOrigin[]>();
+  /**
+   * Containers whose children were not all registered because the per-object
+   * breadth budget cut them off. Registration stays bounded, but a later
+   * lookup can still recover a child by scanning here, so provenance does not
+   * depend on an element's position in a list. Weak so a container that the
+   * application dropped cannot be retained by this cache.
+   */
+  readonly #truncatedContainers: Array<{ ref: WeakRef<object>; origin: ValueOrigin }> = [];
   readonly #networkRequests: NetworkTrace[] = [];
   readonly #storageAccesses: StorageTrace[] = [];
   readonly #storeUpdates: StoreUpdate[] = [];
@@ -1267,20 +1285,14 @@ export class CauseScopeRuntimeImpl implements CauseScopeRuntime {
 
     let entries: Array<readonly [string, unknown]>;
     try {
-      entries = Object.entries(Object.getOwnPropertyDescriptors(value))
-        .filter(([, descriptor]) => descriptor.enumerable && Object.prototype.hasOwnProperty.call(descriptor, "value"))
-        .slice(0, 100)
-        .map(([key, descriptor]) => [key, descriptor.value] as const);
+      const all = dataEntries(objectValue);
+      if (all.length > 100) this.#rememberTruncatedContainer(objectValue, origin);
+      entries = all.slice(0, 100);
     } catch {
       return;
     }
     for (const [key, child] of entries) {
-      // A key that is not a valid identifier has to be bracketed, or the
-      // reported path is not the accessor it claims to be: `rows.row-7.status`
-      // reads as a subtraction, not as `rows["row-7"].status`.
-      const segment = Array.isArray(value)
-        ? `[${key}]`
-        : identifierKey.test(key) ? `.${key}` : `[${JSON.stringify(key)}]`;
+      const segment = this.#containerSegment(objectValue, key);
       const childOrigin: ValueOrigin = {
         ...origin,
         id: createId("cs_origin", ++this.#sequence),
@@ -1294,6 +1306,63 @@ export class CauseScopeRuntimeImpl implements CauseScopeRuntime {
     }
   }
 
+  #containerSegment(container: object, key: string): string {
+    return Array.isArray(container)
+      ? `[${key}]`
+      : identifierKey.test(key) ? `.${key}` : `[${JSON.stringify(key)}]`;
+  }
+
+  #rememberTruncatedContainer(container: object, origin: ValueOrigin): void {
+    const existing = this.#truncatedContainers.findIndex((entry) => entry.ref.deref() === container);
+    if (existing >= 0) this.#truncatedContainers.splice(existing, 1);
+    this.#truncatedContainers.push({ ref: new WeakRef(container), origin });
+    while (this.#truncatedContainers.length > 32) this.#truncatedContainers.shift();
+  }
+
+  #originsForObject(value: object): ValueOrigin[] {
+    const direct = this.#valueOrigins.get(value);
+    if (direct && direct.length > 0) return direct;
+    return this.#originsFromTruncatedContainer(value);
+  }
+
+  /**
+   * Recovers the origin of a child that registration skipped because its
+   * container exceeded the breadth budget. Only runs on a lookup miss, which
+   * happens when a person inspects an element, so scanning is affordable in a
+   * way that registering every child eagerly is not.
+   *
+   * Reads data properties only, exactly as registration does: resolving a
+   * lookup must never invoke an application getter.
+   */
+  #originsFromTruncatedContainer(value: object): ValueOrigin[] {
+    for (let index = this.#truncatedContainers.length - 1; index >= 0; index -= 1) {
+      const entry = this.#truncatedContainers[index];
+      if (!entry) continue;
+      const container = entry.ref.deref();
+      if (!container) {
+        this.#truncatedContainers.splice(index, 1);
+        continue;
+      }
+      let key: string | undefined;
+      try {
+        const found = Array.isArray(container)
+          ? container.indexOf(value)
+          : dataEntries(container).find(([, child]) => child === value)?.[0];
+        if (typeof found === "number") key = found >= 0 ? String(found) : undefined;
+        else key = found;
+      } catch {
+        continue;
+      }
+      if (key === undefined) continue;
+      return [{
+        ...entry.origin,
+        id: createId("cs_origin", ++this.#sequence),
+        path: `${entry.origin.path ?? "value"}${this.#containerSegment(container, key)}`,
+      }];
+    }
+    return [];
+  }
+
   #originsForValue(value: unknown, hint?: CaptureOriginHint): ValueOrigin[] {
     const origins: ValueOrigin[] = [];
     if (hint?.origin) origins.push(this.#appendOriginAccessPath(hint.origin, hint.accessPath));
@@ -1303,7 +1372,7 @@ export class CauseScopeRuntimeImpl implements CauseScopeRuntime {
       ? this.#originsAlongAccessPath(hint.originValue as object, hint.accessPath)
       : [];
     if ((typeof value === "object" && value !== null) || typeof value === "function") {
-      origins.push(...(this.#valueOrigins.get(value as object) ?? []));
+      origins.push(...this.#originsForObject(value as object));
     } else if (!hint?.origin && pathOrigins.length === 0) {
       const threshold = Date.now() - 50;
       const candidates: RecentPrimitiveOrigin[] = [];
@@ -1359,7 +1428,7 @@ export class CauseScopeRuntimeImpl implements CauseScopeRuntime {
 
     for (let consumed = 0; consumed <= segments.length; consumed += 1) {
       if ((typeof current === "object" && current !== null) || typeof current === "function") {
-        const candidates = this.#valueOrigins.get(current as object) ?? [];
+        const candidates = this.#originsForObject(current as object);
         if (candidates.length > 0) {
           const remainingPath = formatAccessPath(segments.slice(consumed));
           deepest = candidates.map((origin) => this.#appendOriginAccessPath(origin, remainingPath));
