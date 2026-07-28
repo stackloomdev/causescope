@@ -77,6 +77,35 @@ async function publishedOnNpm(version: string): Promise<boolean | undefined> {
   }
 }
 
+/**
+ * StackBlitz reports `linux-x64`, so pnpm's platform filter installs rolldown's
+ * native binding and skips the WebAssembly one. WebContainer cannot execute a
+ * native binary, rolldown falls back to WebAssembly, and the fallback is not
+ * installed — the public lab then fails to start with "Cannot find native
+ * binding". Declaring the WebAssembly binding directly defeats the platform
+ * filter, but only while its version matches the rolldown that Vite resolved.
+ * A silent mismatch would break the lab again, so it fails here instead.
+ */
+function assertWasmBindingMatchesRolldown(lockfile: string, manifest: PackageManifest): void {
+  const declared = manifest.devDependencies?.["@rolldown/binding-wasm32-wasi"]
+    ?? manifest.dependencies?.["@rolldown/binding-wasm32-wasi"];
+  if (!declared) {
+    throw new Error(
+      "The live lab must declare @rolldown/binding-wasm32-wasi so StackBlitz installs rolldown's WebAssembly binding.",
+    );
+  }
+  const resolved = [...lockfile.matchAll(/^ {2}rolldown@(\S+):$/gm)].map((match) => match[1]);
+  const unique = [...new Set(resolved)];
+  if (unique.length === 0) return;
+  const mismatched = unique.filter((version) => version !== declared);
+  if (unique.length > 1 || mismatched.length > 0) {
+    throw new Error(
+      `The live lab declares @rolldown/binding-wasm32-wasi ${declared}, but its lockfile resolves rolldown ${unique.join(", ")}. `
+      + "Update the binding to match, or StackBlitz will fail to start with \"Cannot find native binding\".",
+    );
+  }
+}
+
 function runPnpm(args: string[], cwd: string): void {
   const command = pnpmEntry ? process.execPath : pnpmCommand;
   const commandArgs = pnpmEntry ? [pnpmEntry, ...args] : args;
@@ -123,6 +152,7 @@ try {
   if (liveLabManifest.scripts?.dev !== "vite --host 0.0.0.0" || stackBlitzConfig.startCommand !== "pnpm dev") {
     throw new Error("The StackBlitz live lab must auto-start its Vite development server with pnpm dev.");
   }
+  assertWasmBindingMatchesRolldown(readFileSync(join(sourceRoot, "pnpm-lock.yaml"), "utf8"), liveLabManifest);
 
   const sourceFiles = filesWithin(sourceRoot);
   const authoredJavaScript = sourceFiles.filter((file) => [".js", ".jsx", ".mjs", ".cjs"].includes(extname(file)));
