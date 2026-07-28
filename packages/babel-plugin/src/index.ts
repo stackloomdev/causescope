@@ -56,7 +56,24 @@ interface CauseScopePluginState extends PluginPass {
     props: Map<t.Identifier, PropBindingMetadata>;
     storage: Map<t.Identifier, StorageBindingMetadata>;
     derived: Map<t.Identifier, DerivedBindingMetadata>;
+    aliases: Map<t.Identifier, LocalAliasMetadata>;
   };
+}
+
+/**
+ * A local binding that reads a fixed path out of another binding, through
+ * destructuring or a static member read. `const { status } = order` and
+ * `const status = order.status` both resolve to the same root and path, so a
+ * primitive read through either form keeps the provenance that a direct
+ * `order.status` in JSX would have had.
+ */
+interface LocalAliasMetadata {
+  /** Binding identifier of the root object the path is read from. */
+  root: t.Identifier;
+  /** Root variable name, re-resolved at capture time to reject shadowing. */
+  rootName: string;
+  /** Access path from the root, in the same form as `staticMemberInfo`. */
+  accessPath: string;
 }
 
 function stableId(prefix: string, value: string): string {
@@ -309,6 +326,122 @@ function collectDerivedBindings(programPath: NodePath<t.Program>, state: CauseSc
     metadata.traceIdentifier = metadata.initPath.scope.generateUidIdentifier(`${metadata.bindingIdentifier.name}Derivation`);
     buildDerivedCondition(metadata, state);
   }
+}
+
+function joinAccessPath(base: string, segment: string): string {
+  if (!base) return segment;
+  return segment.startsWith("[") ? `${base}${segment}` : `${base}.${segment}`;
+}
+
+function propertyKeySegment(key: t.Node, computed: boolean): string | null {
+  if (!computed && t.isIdentifier(key)) return key.name;
+  if (t.isStringLiteral(key)) return computed ? `[${JSON.stringify(key.value)}]` : key.value;
+  if (computed && t.isNumericLiteral(key)) return `[${String(key.value)}]`;
+  return null;
+}
+
+/**
+ * Resolves the root binding and access path an initializer reads from, folding
+ * an already-recorded alias into the result so chains such as
+ * `const { data } = response; const { order } = data;` still resolve back to
+ * `response`. Returns null when the initializer is not a statically known read.
+ */
+function aliasSource(
+  init: t.Expression,
+  scope: NodePath["scope"],
+  state: CauseScopePluginState,
+): LocalAliasMetadata | null {
+  let rootNode: t.Identifier;
+  let path: string;
+
+  if (t.isIdentifier(init)) {
+    rootNode = init;
+    path = "";
+  } else if (t.isMemberExpression(init) || t.isOptionalMemberExpression(init)) {
+    const member = staticMemberInfo(init);
+    if (!member) return null;
+    rootNode = member.root;
+    path = member.accessPath;
+  } else {
+    return null;
+  }
+
+  const binding = scope.getBinding(rootNode.name);
+  // A reassignable root would be re-read at capture time, so the recorded path
+  // could describe a different object than the one the alias was taken from.
+  if (!binding || !binding.constant) return null;
+
+  const existing = state.causeScope.aliases.get(binding.identifier);
+  if (existing) {
+    return {
+      root: existing.root,
+      rootName: existing.rootName,
+      accessPath: path ? joinAccessPath(existing.accessPath, path) : existing.accessPath,
+    };
+  }
+  return { root: binding.identifier, rootName: rootNode.name, accessPath: path };
+}
+
+function recordAliasPattern(
+  patternPath: NodePath,
+  source: LocalAliasMetadata,
+  state: CauseScopePluginState,
+): void {
+  if (patternPath.isIdentifier()) {
+    const binding = patternPath.scope.getBinding(patternPath.node.name);
+    if (!binding || !binding.constant) return;
+    state.causeScope.aliases.set(binding.identifier, source);
+    return;
+  }
+
+  if (patternPath.isObjectPattern()) {
+    for (const property of patternPath.get("properties")) {
+      if (!property.isObjectProperty()) continue;
+      const segment = propertyKeySegment(property.node.key, property.node.computed);
+      if (segment === null) continue;
+      recordAliasPattern(property.get("value") as NodePath, {
+        ...source,
+        accessPath: joinAccessPath(source.accessPath, segment),
+      }, state);
+    }
+    return;
+  }
+
+  if (patternPath.isArrayPattern()) {
+    patternPath.get("elements").forEach((element, index) => {
+      if (!element || element.node === null) return;
+      recordAliasPattern(element as NodePath, {
+        ...source,
+        accessPath: joinAccessPath(source.accessPath, `[${index}]`),
+      }, state);
+    });
+    return;
+  }
+
+  // Defaults (`const { status = "pending" } = order`) keep the same path: the
+  // fallback only applies when the read is undefined, and the runtime resolves
+  // origins from the value that was actually produced.
+  if (patternPath.isAssignmentPattern()) {
+    recordAliasPattern(patternPath.get("left") as NodePath, source, state);
+  }
+}
+
+/**
+ * Records local bindings that alias a fixed path into another object, so a
+ * destructured primitive keeps the provenance a direct member read would have
+ * had. Without this, `const { status } = order` erases the link back to the
+ * response that produced `order`, because primitives carry no identity.
+ */
+function collectAliasBindings(programPath: NodePath<t.Program>, state: CauseScopePluginState): void {
+  programPath.traverse({
+    VariableDeclarator(declaratorPath) {
+      const init = declaratorPath.node.init;
+      if (!init) return;
+      const source = aliasSource(init, declaratorPath.scope, state);
+      if (!source) return;
+      recordAliasPattern(declaratorPath.get("id") as NodePath, source, state);
+    },
+  });
 }
 
 function derivedConditionsForExpression(
@@ -601,6 +734,26 @@ function instrumentCallArguments(
   }
 }
 
+/**
+ * Returns the alias hint to emit for a captured identifier, or undefined when
+ * it cannot be trusted. The root name is re-resolved in the use-site scope: a
+ * shadowing declaration between the alias and this read would otherwise make
+ * the emitted `originValue` reference a different object entirely.
+ */
+function aliasHintFor(
+  path: NodePath<t.Identifier>,
+  binding: { identifier: t.Identifier },
+  state: CauseScopePluginState,
+): LocalAliasMetadata | undefined {
+  const alias = state.causeScope.aliases.get(binding.identifier);
+  // An empty path means a plain rename, which carries no provenance the
+  // runtime cannot already recover from the value itself.
+  if (!alias?.accessPath) return undefined;
+  const rootBinding = path.scope.getBinding(alias.rootName);
+  if (!rootBinding || rootBinding.identifier !== alias.root) return undefined;
+  return alias;
+}
+
 function wrapCapturedIdentifier(
   path: NodePath<t.Identifier>,
   captureIdentifier: t.Identifier,
@@ -619,16 +772,20 @@ function wrapCapturedIdentifier(
   const storageMetadata = binding ? state.causeScope.storage.get(binding.identifier) : undefined;
   const derivedMetadata = binding ? state.causeScope.derived.get(binding.identifier) : undefined;
   const derivedIdentifier = derivedMetadata?.used ? derivedMetadata.traceIdentifier : undefined;
-  if (stateMetadata || propMetadata || storageMetadata || derivedIdentifier || inputNamespace) {
+  const aliasMetadata = binding ? aliasHintFor(path, binding, state) : undefined;
+  if (stateMetadata || propMetadata || storageMetadata || derivedIdentifier || aliasMetadata || inputNamespace) {
     captureArguments.push(stateMetadata ? t.stringLiteral(stateMetadata.stateId) : t.identifier("undefined"));
   }
-  if (propMetadata || storageMetadata || derivedIdentifier || inputNamespace) {
+  if (propMetadata || storageMetadata || derivedIdentifier || aliasMetadata || inputNamespace) {
     captureArguments.push(
-      propMetadata || storageMetadata || derivedIdentifier
+      propMetadata || storageMetadata || derivedIdentifier || aliasMetadata
         ? originHintObject({
           ...(propMetadata ? { prop: propMetadata } : {}),
           ...(storageMetadata ? { storage: storageMetadata } : {}),
           ...(derivedIdentifier ? { derived: derivedIdentifier } : {}),
+          ...(aliasMetadata
+            ? { originValue: t.identifier(aliasMetadata.rootName), accessPath: aliasMetadata.accessPath }
+            : {}),
         })
         : t.identifier("undefined"),
     );
@@ -1210,6 +1367,7 @@ export default function causeScopeBabelPlugin(): PluginObj<CauseScopePluginState
         props: new Map<t.Identifier, PropBindingMetadata>(),
         storage: new Map<t.Identifier, StorageBindingMetadata>(),
         derived: new Map<t.Identifier, DerivedBindingMetadata>(),
+        aliases: new Map<t.Identifier, LocalAliasMetadata>(),
       };
     },
     visitor: {
@@ -1219,6 +1377,7 @@ export default function causeScopeBabelPlugin(): PluginObj<CauseScopePluginState
           collectStateSetters(path, state);
           collectPropBindings(path, state);
           collectStorageBindings(path, state);
+          collectAliasBindings(path, state);
           collectDerivedBindings(path, state);
         },
         exit(path, state) {

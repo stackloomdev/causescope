@@ -4,6 +4,10 @@ All notable changes to CauseScope will be documented here. The format follows [K
 
 ## [Unreleased]
 
+### Added
+
+- Kept the provenance of destructured primitives, so `const { status } = order` now resolves back to the same confirmed network origin that a direct `order.status` read in JSX already produced. Chained destructuring composes to the full path, and renamed, defaulted, and array patterns carry it too.
+
 ### Changed
 
 - Reframed the refund demo around the selected control and inspector evidence, with stable source and network holds that remain readable at README and social-feed sizes.

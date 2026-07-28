@@ -613,3 +613,70 @@ describe("CauseScope Babel instrumentation", () => {
     expect(output).toContain(".dispatchReducer");
   });
 });
+
+describe("destructured alias provenance", () => {
+  it("gives a destructured primitive the access path a direct member read would have had", () => {
+    const output = transform(`
+      export function RefundPage({ order }): JSX.Element {
+        const { status } = order;
+        return <button disabled={status !== "paid"}>Refund order</button>;
+      }
+    `);
+
+    expect(output).toContain('accessPath: "status"');
+    expect(output).toContain("originValue: order");
+  });
+
+  it("resolves a chained destructure back to the response root", () => {
+    const output = transform(`
+      export function RefundPage({ response }): JSX.Element {
+        const { data } = response;
+        const { order } = data;
+        const { status } = order;
+        return <span>{status}</span>;
+      }
+    `);
+
+    expect(output).toContain('accessPath: "data.order.status"');
+    expect(output).toContain("originValue: response");
+  });
+
+  it("carries the path through renamed, defaulted, and array destructuring", () => {
+    const renamed = transform(`
+      export function A({ order }): JSX.Element {
+        const { status: current } = order;
+        return <span>{current}</span>;
+      }
+    `);
+    expect(renamed).toContain('accessPath: "status"');
+
+    const defaulted = transform(`
+      export function B({ order }): JSX.Element {
+        const { status = "pending" } = order;
+        return <span>{status}</span>;
+      }
+    `);
+    expect(defaulted).toContain('accessPath: "status"');
+
+    const indexed = transform(`
+      export function C({ payload }): JSX.Element {
+        const [first] = payload.items;
+        return <span>{first}</span>;
+      }
+    `);
+    expect(indexed).toContain('accessPath: "items[0]"');
+  });
+
+  it("refuses to emit a path when the root can be reassigned", () => {
+    const output = transform(`
+      export function D({ initial }): JSX.Element {
+        let order = initial;
+        const { status } = order;
+        order = { status: "other" };
+        return <span>{status}</span>;
+      }
+    `);
+
+    expect(output).not.toContain('accessPath: "status"');
+  });
+});
