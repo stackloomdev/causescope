@@ -4,6 +4,8 @@ All notable changes to CauseScope will be documented here. The format follows [K
 
 ## [Unreleased]
 
+## [1.0.0-beta.10] - 2026-07-28
+
 ### Added
 
 - Kept the provenance of destructured primitives, so `const { status } = order` now resolves back to the same confirmed network origin that a direct `order.status` read in JSX already produced. Chained destructuring composes to the full path, and renamed, defaulted, and array patterns carry it too.
