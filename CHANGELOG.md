@@ -4,6 +4,10 @@ All notable changes to CauseScope will be documented here. The format follows [K
 
 ## [Unreleased]
 
+### Fixed
+
+- Restored the public StackBlitz lab, which failed to start with "Cannot find native binding". The lab now installs Rolldown's WebAssembly binding directly, pins its compatible `@napi-rs/wasm-runtime` instead of accepting a breaking minor update, and exercises the WASM path in `verify:stackblitz` even on native CI hosts.
+
 ## [1.0.0-beta.10] - 2026-07-28
 
 ### Added
