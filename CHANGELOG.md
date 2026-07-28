@@ -7,6 +7,11 @@ All notable changes to CauseScope will be documented here. The format follows [K
 ### Added
 
 - Kept the provenance of destructured primitives, so `const { status } = order` now resolves back to the same confirmed network origin that a direct `order.status` read in JSX already produced. Chained destructuring composes to the full path, and renamed, defaulted, and array patterns carry it too.
+- Kept the access path across computed keys that are only known at render time, so `row[columnId]` and `items[index].name` reach the same confirmed origin as a literal read. Each key is hoisted and evaluated once, so the reported value and its path always come from the same read.
+
+### Fixed
+
+- Reported object keys that are not valid identifiers in bracket form, so a traced path stays the accessor it claims to be: `rows["row-7"].status` rather than `rows.row-7.status`.
 
 ### Changed
 

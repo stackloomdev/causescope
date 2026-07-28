@@ -680,3 +680,65 @@ describe("destructured alias provenance", () => {
     expect(output).not.toContain('accessPath: "status"');
   });
 });
+
+describe("dynamic computed access provenance", () => {
+  it("keeps the access path when the key is only known at render time", () => {
+    const output = transform(`
+      export function Cell({ row, columnId }): JSX.Element {
+        return <td>{row[columnId]}</td>;
+      }
+    `);
+
+    expect(output).toContain("originValue: _rowOrigin");
+    expect(output).toContain('typeof _causeScopeKey === "number"');
+    expect(output).toContain('JSON.stringify(String(_causeScopeKey))');
+  });
+
+  it("evaluates a dynamic key exactly once", () => {
+    const output = transform(`
+      export function Cell({ row, nextKey }): JSX.Element {
+        return <td>{row[nextKey()]}</td>;
+      }
+    `);
+
+    // The call is hoisted into the argument list, and both the member read and
+    // the access path consume the parameter, so it cannot be invoked twice.
+    // Textual occurrences elsewhere are string metadata, not evaluations.
+    expect(output).toContain(")(row, nextKey())");
+    expect(output).toContain("_rowOrigin[_causeScopeKey]");
+    expect(output).not.toContain("_rowOrigin[nextKey()]");
+  });
+
+  it("joins dynamic and static segments into one path", () => {
+    const output = transform(`
+      export function Cell({ data, key }): JSX.Element {
+        return <span>{data[key].status}</span>;
+      }
+    `);
+
+    expect(output).toContain('+ ".status"');
+    expect(output).toContain("originValue: _dataOrigin");
+  });
+
+  it("hoists every key of a multi-dimensional read in source order", () => {
+    const output = transform(`
+      export function Cell({ matrix, r, c }): JSX.Element {
+        return <span>{matrix[r][c]}</span>;
+      }
+    `);
+
+    expect(output).toContain("_causeScopeKey, _causeScopeKey2");
+    expect(output).toContain(")(matrix, r, c)");
+  });
+
+  it("still emits a plain string path when no key is dynamic", () => {
+    const output = transform(`
+      export function Cell({ order }): JSX.Element {
+        return <span>{order.items[0].name}</span>;
+      }
+    `);
+
+    expect(output).toContain('accessPath: "items[0].name"');
+    expect(output).not.toContain("_causeScopeKey");
+  });
+});
