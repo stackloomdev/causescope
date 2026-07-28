@@ -2462,3 +2462,83 @@ describe("dynamically built access paths", () => {
     });
   });
 });
+
+describe("provenance past the registration breadth budget", () => {
+  const networkOrigin = {
+    kind: "network" as const,
+    confidence: "confirmed" as const,
+    label: "GET /api/items",
+    path: "response",
+    traceId: "items-1",
+  };
+
+  const originsForObject = (runtime: CauseScopeRuntimeImpl, item: object, value: unknown) =>
+    runtime.traceDerived({
+      condition: { id: "c", type: "member", expression: "item.name", inputName: "n" },
+      evaluate: (capture) => capture("n", value, undefined, { originValue: item, accessPath: "name" }, "item.name") === value,
+    }).inputOrigins.n ?? [];
+
+  it("resolves a list element regardless of its position", () => {
+    const runtime = new CauseScopeRuntimeImpl();
+    const items = Array.from({ length: 200 }, (_, index) => ({ name: `item-${index}` }));
+    runtime.registerValueOrigin({ items }, networkOrigin, true);
+
+    // Inside the budget and far past it must behave the same; two visually
+    // identical rows should not differ in whether they can be explained.
+    expect(originsForObject(runtime, items[5]!, items[5]!.name)[0]).toMatchObject({
+      confidence: "confirmed",
+      path: "response.items[5].name",
+    });
+    expect(originsForObject(runtime, items[150]!, items[150]!.name)[0]).toMatchObject({
+      confidence: "confirmed",
+      path: "response.items[150].name",
+    });
+  });
+
+  it("resolves a keyed record past the budget and brackets an awkward key", () => {
+    const runtime = new CauseScopeRuntimeImpl();
+    const rows: Record<string, { name: string }> = {};
+    for (let index = 0; index < 150; index += 1) rows[`row-${index}`] = { name: `row ${index}` };
+    runtime.registerValueOrigin({ rows }, { ...networkOrigin, label: "GET /api/rows" }, true);
+
+    const target = rows["row-140"]!;
+    expect(originsForObject(runtime, target, target.name)[0]).toMatchObject({
+      confidence: "confirmed",
+      path: 'response.rows["row-140"].name',
+    });
+  });
+
+  it("never invokes an application getter while resolving", () => {
+    const runtime = new CauseScopeRuntimeImpl();
+    let getterCalls = 0;
+    const container: Record<string, unknown> = {};
+    for (let index = 0; index < 150; index += 1) container[`k${index}`] = { name: `n${index}` };
+    Object.defineProperty(container, "trap", {
+      enumerable: true,
+      get() {
+        getterCalls += 1;
+        return { name: "trap" };
+      },
+    });
+    runtime.registerValueOrigin({ container }, networkOrigin, true);
+
+    const stranger = { name: "not in the container" };
+    expect(originsForObject(runtime, stranger, stranger.name)).toEqual([]);
+    expect(getterCalls).toBe(0);
+  });
+
+  it("bounds how many truncated containers it remembers", () => {
+    const runtime = new CauseScopeRuntimeImpl();
+    const containers = Array.from({ length: 33 }, () =>
+      Array.from({ length: 150 }, (_, index) => ({ name: `n${index}` })));
+    // Keep a strong reference so eviction, not collection, is what is measured.
+    containers.forEach((items, index) => {
+      runtime.registerValueOrigin({ items }, { ...networkOrigin, traceId: `t${index}` }, true);
+    });
+
+    const oldest = containers[0]![120]!;
+    const newest = containers[32]![120]!;
+    expect(originsForObject(runtime, oldest, oldest.name)).toEqual([]);
+    expect(originsForObject(runtime, newest, newest.name)[0]).toMatchObject({ confidence: "confirmed" });
+  });
+});

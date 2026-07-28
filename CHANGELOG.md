@@ -8,6 +8,7 @@ All notable changes to CauseScope will be documented here. The format follows [K
 
 - Kept the provenance of destructured primitives, so `const { status } = order` now resolves back to the same confirmed network origin that a direct `order.status` read in JSX already produced. Chained destructuring composes to the full path, and renamed, defaulted, and array patterns carry it too.
 - Kept the access path across computed keys that are only known at render time, so `row[columnId]` and `items[index].name` reach the same confirmed origin as a literal read. Each key is hoisted and evaluated once, so the reported value and its path always come from the same read.
+- Recovered the origin of a value whose container exceeded the per-object recording budget, so an element past the hundredth in a list explains itself the same way the first does. Registration stays bounded; the search runs only when a lookup misses, which is when someone inspects an element.
 
 ### Fixed
 
@@ -15,6 +16,7 @@ All notable changes to CauseScope will be documented here. The format follows [K
 
 ### Changed
 
+- Raised the npm tarball budget from 128 KiB to 130 KiB for the breadth-budget recovery above.
 - Reframed the refund demo around the selected control and inspector evidence, with stable source and network holds that remain readable at README and social-feed sizes.
 - Closed the StackBlitz live-lab predecessor window as soon as the target release is published to npm, so a lab left on the previous version fails `verify:stackblitz` instead of trailing silently until the next release.
 
