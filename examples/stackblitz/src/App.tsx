@@ -79,8 +79,8 @@ export function App(): React.ReactElement {
           </div>
           <p>
             Inspect the disabled button. The chain runs from <code>disabled</code> through <code>canRefund</code> and
-            <code> order.status</code> to the <code>GET /api/orders/4821</code> response that carried it. Simulate the
-            settlement to watch the same chain change.
+            <code> order.status</code> to the <code>GET /api/orders/4821</code> response that carried it. Close the
+            drawer, simulate the settlement, then inspect again to watch the same chain resolve to <code>"paid"</code>.
           </p>
         </div>
         <RefundCard order={order} settled={settled} onSettle={() => setSettled(true)} />

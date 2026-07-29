@@ -11,7 +11,9 @@ Open the CauseScope inspector and select the static heading, release status, pro
 
 ## The network fixture
 
-Selecting the disabled **Refund order** button reproduces the chain the README demonstrates: `disabled` → `canRefund` → `order.status` → the `GET /api/orders/4821` response that carried it. **Simulate settlement** replays the request so the same chain can be watched changing while the inspector is open.
+Selecting the disabled **Refund order** button reproduces the chain the README demonstrates: `disabled` → `canRefund` → `order.status` → the `GET /api/orders/4821` response that carried it.
+
+To watch that chain change, **close the drawer first**, click **Simulate settlement**, then inspect the button again — it is now enabled and the same path resolves to `"paid"`. While the inspector is open every click selects an element instead of activating it, so the settlement cannot be triggered without closing it.
 
 The order is served by a development-server middleware in `vite.config.ts`, so the request is real rather than an in-memory stand-in — without a response there is no network evidence to trace. That middleware is dev-only, which is all the lab runs; a production build of this folder exists purely so `verify:stackblitz` can prove CauseScope leaves nothing behind in it.
 
