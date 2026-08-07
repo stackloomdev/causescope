@@ -14,7 +14,7 @@
     "react-dom": "19.2.8"
   },
   "devDependencies": {
-    "@rolldown/binding-wasm32-wasi": "1.1.5",
+    "@rolldown/binding-wasm32-wasi": "1.2.2",
     "@types/node": "22.10.2",
     "@types/react": "19.2.14",
     "@types/react-dom": "19.2.3",
