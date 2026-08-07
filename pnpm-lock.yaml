@@ -245,8 +245,8 @@ importers:
         specifier: ^2.9.1
         version: 2.14.1
       preact:
-        specifier: ^10.25.4
-        version: 10.29.7
+        specifier: ^10.29.8
+        version: 10.29.8
     devDependencies:
       '@causescope/adapter-react-query':
         specifier: workspace:*
@@ -285,8 +285,8 @@ importers:
         specifier: workspace:*
         version: link:../shared
       preact:
-        specifier: ^10.25.4
-        version: 10.29.7
+        specifier: ^10.29.8
+        version: 10.29.8
 
   packages/runtime-core:
     dependencies:
@@ -2161,8 +2161,8 @@ packages:
     resolution: {integrity: sha512-KBDEIpLrvpv16pp3K0Fw+UCoZfopFjjgeB+0tA/aaThfEE74kKDLrgg603YvOWJyg3+WYtyq3xYsQWsIyZlPqQ==}
     engines: {node: ^10 || ^12 || >=14}
 
-  preact@10.29.7:
-    resolution: {integrity: sha512-DCHYrK/B10yUD3ZjLfhZ3WIE/9Vf9VFUODcRE2dRomTYDpJk6z6L9wecSfhfE6M9ZTHUdyQkoC46arIDhEV84Q==}
+  preact@10.29.8:
+    resolution: {integrity: sha512-ej2aVZ+vZ8WO7tvlQWRM9N63A0KzF9q4mWJfDUHgYaIofWY9hu74QdnQrjoPMmZi2/nZ5gN0bJCQF49xQqx09Q==}
     peerDependencies:
       preact-render-to-string: '>=5'
     peerDependenciesMeta:
@@ -4001,7 +4001,7 @@ snapshots:
       picocolors: 1.1.1
       source-map-js: 1.2.1
 
-  preact@10.29.7: {}
+  preact@10.29.8: {}
 
   property-information@7.2.0: {}
 
