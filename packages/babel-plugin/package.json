@@ -18,7 +18,7 @@
   "dependencies": {
     "@babel/core": "^7.26.0",
     "@babel/generator": "^7.26.0",
-    "@babel/types": "^7.26.0"
+    "@babel/types": "^7.29.8"
   },
   "devDependencies": {
     "@types/babel__core": "^7.20.5",
