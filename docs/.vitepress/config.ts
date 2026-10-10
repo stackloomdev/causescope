@@ -14,7 +14,7 @@ export default defineConfig({
     ["meta", { property: "og:type", content: "website" }],
     ["meta", { property: "og:title", content: "CauseScope — Click any UI. Trace the cause." }],
     ["meta", { property: "og:description", content: "Trace rendered React UI back to the exact TSX, branch, state, props, store, and network evidence." }],
-    ["meta", { property: "og:image", content: "https://stackloomdev.github.io/causescope/og.png" }],
+    ["meta", { property: "og:image", content: "https://causescope.pjstack.dev/og.png" }],
     ["meta", { name: "twitter:card", content: "summary_large_image" }],
   ],
   themeConfig: {
