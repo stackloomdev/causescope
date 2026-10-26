@@ -242,8 +242,8 @@ importers:
         specifier: ^5.1.4
         version: 5.4.0(rollup@4.62.2)
       launch-editor:
-        specifier: ^2.9.1
-        version: 2.14.1
+        specifier: ^2.14.2
+        version: 2.14.2
       preact:
         specifier: ^10.25.4
         version: 10.29.7
@@ -317,8 +317,8 @@ importers:
         specifier: ^5.1.4
         version: 5.4.0(rollup@4.62.2)
       launch-editor:
-        specifier: ^2.9.1
-        version: 2.14.1
+        specifier: ^2.14.2
+        version: 2.14.2
     devDependencies:
       '@types/babel__core':
         specifier: ^7.20.5
@@ -1878,8 +1878,8 @@ packages:
     engines: {node: '>=6'}
     hasBin: true
 
-  launch-editor@2.14.1:
-    resolution: {integrity: sha512-QWBrQsMpH7gPr965dsKD/3cKWiNoTjpATQf++Xq63N6sKRGMwlVXz41O1IZTMfZQgBctD/K5Zt06+/I6pP6+HA==}
+  launch-editor@2.14.2:
+    resolution: {integrity: sha512-NHJEb30MGBCkmZXLZwz25t37QR4aY03ZzPYUJXOJaOa92uWwExI9SBQUuIznBYc1xkD7cJNGX7oc3Nl3sq2kQQ==}
 
   lightningcss-android-arm64@1.32.0:
     resolution: {integrity: sha512-YK7/ClTt4kAK0vo6w3X+Pnm0D2cf2vPHbhOXdoNti1Ga0al1P4TBZhwjATvjNwLEBCnKvjJc2jQgHXH0NEwlAg==}
@@ -3776,7 +3776,7 @@ snapshots:
 
   json5@2.2.3: {}
 
-  launch-editor@2.14.1:
+  launch-editor@2.14.2:
     dependencies:
       picocolors: 1.1.1
       shell-quote: 1.12.0
