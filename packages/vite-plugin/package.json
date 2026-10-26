@@ -20,7 +20,7 @@
     "@causescope/babel-plugin": "workspace:*",
     "@causescope/shared": "workspace:*",
     "@rollup/pluginutils": "^5.1.4",
-    "launch-editor": "^2.9.1"
+    "launch-editor": "^2.14.2"
   },
   "devDependencies": {
     "@types/babel__core": "^7.20.5",
